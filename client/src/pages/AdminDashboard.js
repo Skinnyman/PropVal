@@ -156,9 +156,9 @@ const AdminDashboard = () => {
     <div className="flex bg-slate-50 min-h-screen">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <header className="bg-white border-b px-8 py-5 flex items-center justify-between sticky top-0 z-40">
+        <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center space-x-3">
-            <h1 className="text-2xl font-bold text-primary">Admin Portal</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-primary">Admin Portal</h1>
           </div>
           <div className="flex bg-slate-100 p-1 rounded-2xl">
             <button
@@ -177,7 +177,7 @@ const AdminDashboard = () => {
           </div>
         </header>
 
-        <div className="p-8 max-w-5xl mx-auto">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto">
           {status.message && (
             <div className={`mb-8 p-4 rounded-2xl flex items-center space-x-3 animate-in fade-in slide-in-from-top-4 ${status.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'
               }`}>
@@ -187,8 +187,8 @@ const AdminDashboard = () => {
           )}
 
           {activeTab === 'add' ? (
-            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
-              <form onSubmit={onSubmit} className="p-10 space-y-10">
+            <div className="bg-white rounded-3xl md:rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
+              <form onSubmit={onSubmit} className="p-6 md:p-10 space-y-8 md:space-y-10">
                 {/* Basic Info Section */}
                 <section>
                   <div className="flex items-center space-x-2 mb-6">

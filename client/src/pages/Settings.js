@@ -10,20 +10,20 @@ const Settings = () => {
     <div className="flex bg-slate-50 min-h-screen">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <header className="bg-white border-b px-8 py-5 sticky top-0 z-40">
-          <h1 className="text-2xl font-bold text-primary">Settings</h1>
+        <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 sticky top-0 z-40">
+          <h1 className="text-xl md:text-2xl font-bold text-primary">Settings</h1>
         </header>
 
-        <div className="p-8 max-w-4xl mx-auto">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
-            <div className="p-10">
-              <div className="flex items-center space-x-6 mb-12">
-                <div className="w-24 h-24 bg-accent rounded-3xl flex items-center justify-center text-white text-3xl font-black shadow-2xl shadow-blue-500/20">
+        <div className="p-4 md:p-8 max-w-4xl mx-auto">
+          <div className="bg-white rounded-3xl md:rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
+            <div className="p-6 md:p-10">
+              <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-6 mb-10 md:mb-12 text-center md:text-left">
+                <div className="w-20 h-20 md:w-24 md:h-24 bg-accent rounded-3xl flex items-center justify-center text-white text-3xl font-black shadow-2xl shadow-blue-500/20 shrink-0">
                   {user?.name?.[0].toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-3xl font-black text-primary">{user?.name}</h2>
-                  <p className="text-slate-500 font-medium">{user?.role} Account • {user?.email}</p>
+                  <h2 className="text-2xl md:text-3xl font-black text-primary">{user?.name}</h2>
+                  <p className="text-slate-500 font-medium text-sm md:text-base break-all">{user?.role} Account • {user?.email}</p>
                 </div>
               </div>
 
@@ -87,8 +87,8 @@ const Settings = () => {
                   </div>
                 </section>
 
-                <div className="pt-8 border-t border-slate-50">
-                  <button className="px-8 py-4 bg-primary text-white font-black rounded-2xl shadow-xl shadow-slate-200 hover:bg-black transition active:scale-95">
+                <div className="pt-8 border-t border-slate-50 flex justify-center md:justify-start">
+                  <button className="w-full md:w-auto px-8 py-4 bg-primary text-white font-black rounded-2xl shadow-xl shadow-slate-200 hover:bg-black transition active:scale-95">
                     Save All Changes
                   </button>
                 </div>

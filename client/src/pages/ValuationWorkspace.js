@@ -171,14 +171,14 @@ const ValuationWorkspace = () => {
     <div className="flex bg-slate-50 min-h-screen">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <header className="bg-white border-b px-8 py-5 sticky top-0 z-40">
-          <h1 className="text-2xl font-bold text-primary">Valuation Workspace</h1>
+        <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 sticky top-0 z-40">
+          <h1 className="text-xl md:text-2xl font-bold text-primary">Valuation Workspace</h1>
         </header>
 
-        <div className="p-8 max-w-5xl mx-auto relative">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto relative">
           {/* Professional check removed to allow all users access */}
           {/* Progress Stepper */}
-          <div className="flex items-center justify-between mb-12 px-4">
+          <div className="flex items-center justify-between mb-8 md:mb-12 px-2 md:px-4 overflow-x-auto pb-4 hide-scrollbar">
             {[1, 2, 3, 4, 5].map((s) => (
               <React.Fragment key={s}>
                 <div className="flex flex-col items-center">
@@ -186,21 +186,21 @@ const ValuationWorkspace = () => {
                     }`}>
                     {loading && step === s ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : s}
                   </div>
-                  <span className={`text-xs mt-2 font-medium ${step >= s ? 'text-accent' : 'text-slate-400'}`}>
+                  <span className={`text-[10px] md:text-xs mt-2 font-medium ${step >= s ? 'text-accent' : 'text-slate-400'} whitespace-nowrap`}>
                     {s === 1 ? 'Method' : s === 2 ? 'Subject' : s === 3 ? 'Comps' : s === 4 ? 'Calc' : 'Final'}
                   </span>
                 </div>
-                {s < 5 && <div className={`flex-1 h-0.5 mx-4 ${step > s ? 'bg-accent' : 'bg-slate-200'}`}></div>}
+                {s < 5 && <div className={`flex-1 h-0.5 mx-2 md:mx-4 ${step > s ? 'bg-accent' : 'bg-slate-200'}`}></div>}
               </React.Fragment>
             ))}
           </div>
 
           {/* Step Content */}
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
+          <div className="bg-white rounded-3xl md:rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
             {step === 1 && (
-              <div className="p-12">
-                <h2 className="text-3xl font-bold text-primary mb-4 text-center">Choose Valuation Method</h2>
-                <p className="text-slate-500 text-center mb-12">Select the most appropriate methodology for your subject property.</p>
+              <div className="p-6 md:p-12">
+                <h2 className="text-2xl md:text-3xl font-bold text-primary mb-4 text-center">Choose Valuation Method</h2>
+                <p className="text-slate-500 text-center mb-8 md:mb-12">Select the most appropriate methodology for your subject property.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   <div
@@ -276,9 +276,9 @@ const ValuationWorkspace = () => {
             )}
 
             {step === 2 && (
-              <div className="p-12">
-                <h2 className="text-3xl font-bold text-primary mb-2">Subject Property Details</h2>
-                <p className="text-slate-500 mb-10">Define the core characteristics of the property being valued.</p>
+              <div className="p-6 md:p-12">
+                <h2 className="text-2xl md:text-3xl font-bold text-primary mb-2">Subject Property Details</h2>
+                <p className="text-slate-500 mb-8 md:mb-10">Define the core characteristics of the property being valued.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                   <div className="space-y-4">
@@ -498,13 +498,13 @@ const ValuationWorkspace = () => {
                   </div>
                 )}
 
-                <div className="flex justify-between items-center bg-slate-50 -mx-12 -mb-12 p-8 border-t border-slate-100 mt-12">
-                  <button onClick={() => setStep(1)} className="text-slate-500 font-bold hover:text-primary transition">Back</button>
+                <div className="flex flex-col-reverse md:flex-row justify-between items-center bg-slate-50 -mx-6 md:-mx-12 -mb-6 md:-mb-12 p-6 md:p-8 border-t border-slate-100 mt-8 md:mt-12 gap-4">
+                  <button onClick={() => setStep(1)} className="text-slate-500 font-bold hover:text-primary transition w-full md:w-auto py-3">Back</button>
                   {method === 'Comparable Sales' ? (
                     <button
                       onClick={fetchComparables}
                       disabled={loading || !subject.suburb}
-                      className="bg-accent text-white px-8 py-4 rounded-xl font-bold flex items-center shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-accent text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center w-full md:w-auto shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : null}
                       {loading ? 'Searching...' : 'Find Comparables'} {!loading && <ChevronRight size={20} className="ml-1" />}
@@ -513,7 +513,7 @@ const ValuationWorkspace = () => {
                     <button
                       onClick={finalizeValuation}
                       disabled={loading || !subject.size || (method === 'Income Capitalization' && !incomeData.annualRentalIncome)}
-                      className="bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold flex items-center shadow-lg shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center w-full md:w-auto shadow-lg shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : null}
                       {loading ? 'Calculating...' : 'Calculate Valuation'} {!loading && <ChevronRight size={20} className="ml-1" />}
@@ -524,9 +524,9 @@ const ValuationWorkspace = () => {
             )}
 
             {step === 3 && (
-              <div className="p-12">
-                <h2 className="text-3xl font-bold text-primary mb-2">Select Comparables</h2>
-                <p className="text-slate-500 mb-10">Select at least 3 recent transactions to base your valuation on.</p>
+              <div className="p-6 md:p-12">
+                <h2 className="text-2xl md:text-3xl font-bold text-primary mb-2">Select Comparables</h2>
+                <p className="text-slate-500 mb-8 md:mb-10">Select at least 3 recent transactions to base your valuation on.</p>
 
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 mb-10">
                   {properties.length > 0 ? (
@@ -549,9 +549,9 @@ const ValuationWorkspace = () => {
                             <p className="text-xs text-slate-500">{comp.propertyInfo?.propertyType} • {comp.propertyInfo?.size} sqm • {comp.propertyInfo?.rooms} Rooms</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-primary">GHS {comp.marketData?.salePrice?.toLocaleString()}</p>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded-md font-bold uppercase">Verified</span>
+                        <div className="text-right shrink-0">
+                          <p className="font-bold text-primary text-sm md:text-base">GHS {comp.marketData?.salePrice?.toLocaleString()}</p>
+                          <span className="text-[8px] md:text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded-md font-bold uppercase mt-1 inline-block">Verified</span>
                         </div>
                       </div>
                     ))
@@ -564,12 +564,12 @@ const ValuationWorkspace = () => {
                   )}
                 </div>
 
-                <div className="flex justify-between items-center bg-slate-50 -mx-12 -mb-12 p-8 border-t border-slate-100 mt-12">
-                  <button onClick={() => setStep(2)} className="text-slate-500 font-bold hover:text-primary transition">Back</button>
+                <div className="flex flex-col-reverse md:flex-row justify-between items-center bg-slate-50 -mx-6 md:-mx-12 -mb-6 md:-mb-12 p-6 md:p-8 border-t border-slate-100 mt-8 md:mt-12 gap-4">
+                  <button onClick={() => setStep(2)} className="text-slate-500 font-bold hover:text-primary transition w-full md:w-auto py-3">Back</button>
                   <button
                     onClick={finalizeValuation}
                     disabled={loading || selectedComps.length < 1}
-                    className="bg-accent text-white px-8 py-4 rounded-xl font-bold flex items-center shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-accent text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center w-full md:w-auto shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? <Loader2 className="animate-spin mr-2" size={20} /> : null}
                     {loading ? 'Processing...' : 'Review Valuation'} {!loading && <ChevronRight size={20} className="ml-1" />}
@@ -579,11 +579,10 @@ const ValuationWorkspace = () => {
             )}
 
             {step === 4 && valuationResult && (
-              <div className="p-12">
-                <h2 className="text-3xl font-bold text-primary mb-2">Valuation Calculation</h2>
-                <p className="text-slate-500 mb-10">Review the computation results and specific factors used in this {valuationResult.method}.</p>
-
-                <div className="bg-slate-50 rounded-3xl p-8 mb-10">
+              <div className="p-6 md:p-12">
+                <h2 className="text-2xl md:text-3xl font-bold text-primary mb-2">Valuation Calculation</h2>
+                <p className="text-slate-500 mb-8 md:mb-10">Review the computation results and specific factors used in this {valuationResult.method}.</p>
+                <div className="bg-slate-50 rounded-3xl p-6 md:p-8 mb-8 md:mb-10">
                   <div className="flex justify-between items-center mb-6 border-b border-slate-200 pb-4">
                     <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Methodology</span>
                     <span className="font-black text-primary px-3 py-1 bg-white rounded-lg shadow-sm border border-slate-100">{valuationResult.method}</span>
@@ -674,11 +673,11 @@ const ValuationWorkspace = () => {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center bg-slate-50 -mx-12 -mb-12 p-8 border-t border-slate-100 mt-12">
-                  <button onClick={() => setStep(2)} className="text-slate-500 font-bold hover:text-primary transition">Back</button>
+                <div className="flex flex-col-reverse md:flex-row justify-between items-center bg-slate-50 -mx-6 md:-mx-12 -mb-6 md:-mb-12 p-6 md:p-8 border-t border-slate-100 mt-8 md:mt-12 gap-4">
+                  <button onClick={() => setStep(2)} className="text-slate-500 font-bold hover:text-primary transition w-full md:w-auto py-3">Back</button>
                   <button
                     onClick={onFinalize}
-                    className="bg-accent text-white px-10 py-5 rounded-3xl font-black flex items-center shadow-xl shadow-blue-500/20 hover:scale-[1.03] active:scale-95 transition"
+                    className="bg-accent text-white px-10 py-5 rounded-3xl font-black flex items-center justify-center w-full md:w-auto shadow-xl shadow-blue-500/20 hover:scale-[1.03] active:scale-95 transition"
                   >
                     Confirm & Finalize <ChevronRight size={20} className="ml-1" />
                   </button>
@@ -687,20 +686,20 @@ const ValuationWorkspace = () => {
             )}
 
             {step === 5 && valuationResult && (
-              <div className="p-12 animate-in zoom-in-95 duration-500">
-                <div className="flex items-center justify-center mb-10">
-                  <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center border-4 border-emerald-100 shadow-xl">
-                    <ShieldCheck size={48} />
+              <div className="p-6 md:p-12 animate-in zoom-in-95 duration-500">
+                <div className="flex items-center justify-center mb-8 md:mb-10">
+                  <div className="w-20 h-20 md:w-24 md:h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center border-4 border-emerald-100 shadow-xl">
+                    <ShieldCheck size={40} className="md:w-12 md:h-12" />
                   </div>
                 </div>
-                <h2 className="text-4xl font-black text-primary mb-2 text-center">Valuation Finalized</h2>
-                <p className="text-slate-500 text-center mb-12">Your professional valuation report is ready for download.</p>
+                <h2 className="text-3xl md:text-4xl font-black text-primary mb-2 text-center">Valuation Finalized</h2>
+                <p className="text-slate-500 text-center mb-8 md:mb-12 text-sm md:text-base">Your professional valuation report is ready for download.</p>
 
-                <div className="bg-slate-900 rounded-[2.5rem] p-10 text-white mb-10 relative overflow-hidden">
-                  <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div className="bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 text-white mb-8 md:mb-10 relative overflow-hidden">
+                  <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center text-center md:text-left">
                     <div>
-                      <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-2">Total Estimated Value</p>
-                      <h3 className="text-5xl font-black text-accent">GHS {valuationResult.finalValue?.toLocaleString()}</h3>
+                      <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] md:text-xs mb-2">Total Estimated Value</p>
+                      <h3 className="text-4xl md:text-5xl font-black text-accent">GHS {valuationResult.finalValue?.toLocaleString()}</h3>
                       <p className="text-slate-400 mt-4 text-sm leading-relaxed">
                         Report ID: <span className="text-white font-mono">{valuationResult._id}</span><br/>
                         Generated on {new Date().toLocaleDateString()}

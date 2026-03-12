@@ -97,9 +97,9 @@ const SubmitProperty = () => {
     <div className="flex bg-slate-50 min-h-screen">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <header className="bg-white border-b px-8 py-5 sticky top-0 z-40 flex justify-between items-center">
+        <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 sticky top-0 z-40 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-primary">Contribute Data</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-primary">Contribute Data</h1>
             <p className="text-xs text-slate-400 font-medium">Add verified transaction records to the collaborative database</p>
           </div>
           <div className="flex items-center space-x-2 text-[10px] bg-blue-50 text-accent px-3 py-1 rounded-full font-bold uppercase tracking-wider">
@@ -108,14 +108,14 @@ const SubmitProperty = () => {
           </div>
         </header>
 
-        <div className="p-8 max-w-5xl mx-auto">
+        <div className="p-4 md:p-8 max-w-5xl mx-auto">
           {submitted ? (
-            <div className="bg-white rounded-[2.5rem] p-16 shadow-2xl text-center border-2 border-emerald-100">
+            <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-8 md:p-16 shadow-2xl text-center border-2 border-emerald-100">
               <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 border-8 border-emerald-50">
                 <CheckCircle size={48} />
               </div>
-              <h2 className="text-4xl font-black text-primary mb-4">Submission Received</h2>
-              <p className="text-slate-500 text-lg mb-8 max-w-lg mx-auto">
+              <h2 className="text-3xl md:text-4xl font-black text-primary mb-4">Submission Received</h2>
+              <p className="text-slate-500 text-base md:text-lg mb-8 max-w-lg mx-auto">
                 Thank you for your contribution. Your record has been sent to the moderation queue for verification.
                 You will be notified once it is approved.
               </p>
@@ -125,10 +125,10 @@ const SubmitProperty = () => {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
               {/* Location Section */}
-              <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-100">
-                <div className="flex items-center space-x-3 mb-8">
+              <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-slate-100">
+                <div className="flex items-center space-x-3 mb-6 md:mb-8">
                   <div className="w-10 h-10 bg-blue-50 text-accent rounded-xl flex items-center justify-center">
                     <MapPin size={20} />
                   </div>
@@ -175,8 +175,8 @@ const SubmitProperty = () => {
               </div>
 
               {/* Specs & Features */}
-              <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-100">
-                <div className="flex items-center space-x-3 mb-8">
+              <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-slate-100">
+                <div className="flex items-center space-x-3 mb-6 md:mb-8">
                   <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center">
                     <Home size={20} />
                   </div>
@@ -227,8 +227,8 @@ const SubmitProperty = () => {
               </div>
 
               {/* Market Data */}
-              <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-slate-100">
-                <div className="flex items-center space-x-3 mb-8">
+              <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-slate-100">
+                <div className="flex items-center space-x-3 mb-6 md:mb-8">
                   <div className="w-10 h-10 bg-amber-50 text-amber-500 rounded-xl flex items-center justify-center">
                     <DollarSign size={20} />
                   </div>
@@ -278,8 +278,8 @@ const SubmitProperty = () => {
               </div>
 
               {/* Data Source Section */}
-              <div className="bg-slate-900 rounded-[2.5rem] p-10 shadow-xl border border-slate-800 text-white">
-                <div className="flex items-center space-x-3 mb-8">
+              <div className="bg-slate-900 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-slate-800 text-white">
+                <div className="flex items-center space-x-3 mb-6 md:mb-8">
                   <div className="w-10 h-10 bg-white/10 text-white rounded-xl flex items-center justify-center">
                     <Database size={20} />
                   </div>

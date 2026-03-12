@@ -86,8 +86,8 @@ const PropertyExplorer = () => {
     <div className="flex bg-slate-50 min-h-screen">
       <Sidebar />
       <main className="flex-1 overflow-hidden flex flex-col">
-        <header className="bg-white border-b px-8 py-5 flex items-center justify-between sticky top-0 z-40">
-          <h1 className="text-2xl font-bold text-primary">Property Database</h1>
+        <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 flex items-center justify-between sticky top-0 z-40">
+          <h1 className="text-xl md:text-2xl font-bold text-primary">Property Database</h1>
           <div className="flex items-center space-x-4">
             <div className="flex bg-slate-100 p-1 rounded-xl">
               <button
@@ -114,7 +114,7 @@ const PropertyExplorer = () => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 max-w-7xl mx-auto w-full">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 max-w-7xl mx-auto w-full">
           {/* Search & Filter Bar */}
           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 mb-10 sticky top-0 z-30">
             <div className="flex-1 relative">
@@ -131,7 +131,7 @@ const PropertyExplorer = () => {
               <select 
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="bg-slate-50 border-none rounded-2xl px-6 py-3 font-medium text-slate-600 focus:ring-2 focus:ring-accent transition outline-none"
+                className="w-full md:w-auto bg-slate-50 border-none rounded-2xl px-6 py-3 font-medium text-slate-600 focus:ring-2 focus:ring-accent transition outline-none"
               >
                 <option value="All">All Types</option>
                 <option value="Detached House">Detached House</option>
@@ -140,7 +140,7 @@ const PropertyExplorer = () => {
                 <option value="Office">Office</option>
                 <option value="Commercial">Commercial</option>
               </select>
-              <button className="bg-slate-50 text-slate-600 px-6 py-3 rounded-2xl font-bold hover:bg-slate-100 transition flex items-center border border-slate-100">
+              <button className="w-full md:w-auto justify-center bg-slate-50 text-slate-600 px-6 py-3 rounded-2xl font-bold hover:bg-slate-100 transition flex items-center border border-slate-100">
                 <Filter size={18} className="mr-2" /> Filters
               </button>
             </div>

@@ -67,7 +67,8 @@ const Dashboard = () => {
       }
     };
     fetchDashboardData();
-  }, [refreshUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   return (
@@ -75,8 +76,8 @@ const Dashboard = () => {
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
         {/* Header */}
-        <header className="bg-white border-b px-8 py-5 flex items-center justify-between sticky top-0 z-40">
-          <h1 className="text-2xl font-bold text-primary">Overview</h1>
+        <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 flex items-center justify-between sticky top-0 z-40">
+          <h1 className="text-xl md:text-2xl font-bold text-primary">Overview</h1>
           <div className="flex items-center space-x-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
@@ -92,10 +93,10 @@ const Dashboard = () => {
           </div>
         </header>
 
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
           {/* Welcome section */}
-          <div className="mb-10">
-            <h2 className="text-3xl font-extrabold text-primary mb-2">Welcome back, {user?.name?.split(' ')[0] || 'User'} 👋</h2>
+          <div className="mb-8 md:mb-10">
+            <h2 className="text-2xl md:text-3xl font-extrabold text-primary mb-2">Welcome back, {user?.name?.split(' ')[0] || 'User'} 👋</h2>
             <p className="text-slate-500">Here's a summary of your property valuation activity this month.</p>
           </div>
 

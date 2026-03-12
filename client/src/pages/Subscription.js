@@ -25,11 +25,11 @@ const Subscription = () => {
     <div className="flex bg-slate-50 min-h-screen">
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
-        <header className="bg-white border-b px-8 py-5 sticky top-0 z-40">
-          <h1 className="text-2xl font-bold text-primary">Subscription Plan</h1>
+        <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 sticky top-0 z-40">
+          <h1 className="text-xl md:text-2xl font-bold text-primary">Subscription Plan</h1>
         </header>
 
-        <div className="p-12 max-w-6xl mx-auto text-center">
+        <div className="p-4 md:p-12 max-w-6xl mx-auto text-center">
           <div className="inline-block px-4 py-1.5 bg-accent/10 text-accent rounded-full text-xs font-black uppercase tracking-widest mb-6">
             Membership Plans
           </div>
@@ -40,7 +40,7 @@ const Subscription = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-4xl mx-auto">
             {/* Free Plan */}
-            <div className="bg-white rounded-[2.5rem] p-10 shadow-xl border-2 border-transparent relative overflow-hidden transition hover:shadow-2xl">
+            <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-xl border-2 border-transparent relative overflow-hidden transition hover:shadow-2xl">
               <div className="flex justify-between items-start mb-8 text-left">
                 <div>
                   <div className="w-14 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mb-4">
@@ -80,7 +80,7 @@ const Subscription = () => {
             </div>
 
             {/* Professional Plan */}
-            <div className="bg-white rounded-[2.5rem] p-10 shadow-2xl border-4 border-accent relative overflow-hidden transition hover:scale-[1.02]">
+            <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-2xl border-4 border-accent relative overflow-hidden transition hover:scale-[1.02]">
               <div className="absolute top-0 right-0 bg-accent text-white px-6 py-2 rounded-bl-3xl font-black text-[10px] uppercase tracking-widest">
                 Recommended
               </div>
