@@ -24,11 +24,11 @@ const Dashboard = () => {
   const [recentValuations, setRecentValuations] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ Fixed useEffect
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Refresh user to get latest savedProperties
-        await refreshUser();
+        await refreshUser(); // Refresh user to get latest savedProperties
 
         const [valuationsRes, propertiesRes] = await Promise.all([
           api.get('/valuations'),
@@ -66,10 +66,9 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-    fetchDashboardData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
+    fetchDashboardData();
+  }, [user?.savedProperties?.length, refreshUser]); // ✅ Correct dependencies
 
   return (
     <div className="flex bg-slate-50 min-h-screen">
@@ -188,7 +187,6 @@ const Dashboard = () => {
                     Upgrade Now
                   </button>
                 </div>
-                {/* Decorative circle */}
                 <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-accent/20 rounded-full blur-3xl group-hover:bg-accent/30 transition"></div>
               </div>
             )}
