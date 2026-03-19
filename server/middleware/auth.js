@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const auth = function(req, res, next) {
+const auth = function (req, res, next) {
   // Get token from header
   const token = req.header('x-auth-token');
 
@@ -20,10 +20,32 @@ const auth = function(req, res, next) {
   }
 };
 
+const User = require('../models/User');
+
 const checkSubscription = (tier) => {
-  return (req, res, next) => {
-    // TEMPORARY: Allow all users to access professional features for testing/demo
-    next();
+  return async (req, res, next) => {
+    // TEMPORARY: Unlock all features for presentation/everyone
+    return next();
+    
+    /* Original check:
+    try {
+      if (req.user.role === 'Admin') return next();
+
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(401).json({ msg: 'User not found' });
+      }
+
+      if (user.subscriptionStatus !== tier) {
+        return res.status(403).json({ msg: `Access denied: ${tier} subscription required` });
+      }
+
+      next();
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server error');
+    }
+    */
   };
 };
 

@@ -26,10 +26,10 @@ const LandingPage = () => {
       <section className="relative pt-20 pb-32 overflow-hidden bg-slate-900">
         <div className="container mx-auto px-6 relative z-10">
           <div className="max-w-4xl mx-auto text-center text-white">
-            <h1 className="text-5xl md:text-7xl font-extrabold mb-8 leading-tight">
+            <h1 className="text-3xl md:text-7xl font-extrabold mb-8 leading-tight">
               Ghana's Premium <span className="text-accent">Property Intelligence</span> Platform
             </h1>
-            <p className="text-xl md:text-2xl text-slate-300 mb-10 max-w-2xl mx-auto">
+            <p className="text-lg md:text-2xl text-slate-300 mb-10 max-w-2xl mx-auto">
               Empowering professional valuers, banks, and developers with real-time property data and automated valuation tools.
             </p>
             <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">

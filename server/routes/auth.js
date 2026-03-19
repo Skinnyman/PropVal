@@ -4,10 +4,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
+
+// Rate limiting for auth routes (100 requests per 15 minutes)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many requests from this IP, please try again after 15 minutes'
+});
 
 // @route   POST api/auth/register
 // @desc    Register user
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   const { name, email, password, company } = req.body;
   // console.log(req.body)
   try {
@@ -18,11 +26,12 @@ router.post('/register', async (req, res) => {
 
     // Role selection based on secret code
     let role = 'Valuer';
-    if (req.body.adminSecret === 'PropValAdmin2026') {
+    let accountStatus = 'Approved';
+    if (req.body.adminSecret === process.env.ADMIN_SECRET) {
       role = 'Admin';
     }
 
-    user = new User({ name, email, password, company, role });
+    user = new User({ name, email, password, company, role, accountStatus });
 
     // If Admin, remove company and subscriptionStatus
     if (role === 'Admin') {
@@ -51,6 +60,7 @@ router.post('/register', async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            accountStatus: user.accountStatus,
             subscriptionStatus: user.subscriptionStatus
           }
         });
@@ -64,7 +74,7 @@ router.post('/register', async (req, res) => {
 
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   console.log('Login attempt for:', email);
 
@@ -79,6 +89,13 @@ router.post('/login', async (req, res) => {
     if (!isMatch) {
       console.log('Login failed: Password mismatch');
       return res.status(400).json({ msg: 'Invalid Credentials' });
+    }
+
+    if (user.accountStatus === 'Pending') {
+      return res.status(403).json({ msg: 'Your account is pending Admin approval.' });
+    }
+    if (user.accountStatus === 'Rejected') {
+      return res.status(403).json({ msg: 'Your account registration was rejected.' });
     }
 
     const payload = { user: { id: user.id, role: user.role } };
@@ -96,6 +113,7 @@ router.post('/login', async (req, res) => {
             name: user.name,
             email: user.email,
             role: user.role,
+            accountStatus: user.accountStatus,
             subscriptionStatus: user.subscriptionStatus
           }
         });
@@ -119,16 +137,27 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
-// @route   POST api/auth/initialize-payment
-// @desc    Initialize Paystack payment (Placeholder)
-router.post('/initialize-payment', async (req, res) => {
-  const { plan } = req.body;
+// @route   PUT api/auth/profile
+// @desc    Update user profile data
+router.put('/profile', auth, async (req, res) => {
+  const { name, company } = req.body;
   try {
-    // In a real app, you would call Paystack API here
-    // For now, we return a mock authorization URL
+    let user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    if (name) user.name = name;
+    if (company) user.company = company;
+
+    await user.save();
+
     res.json({
-      authorization_url: `https://checkout.paystack.com/mock-checkout?plan=${plan}`,
-      access_code: 'mock_code_123'
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      accountStatus: user.accountStatus,
+      subscriptionStatus: user.subscriptionStatus,
+      company: user.company
     });
   } catch (err) {
     console.error(err.message);

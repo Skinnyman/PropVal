@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import ToastContainer from '../components/Toast';
+import { useToast } from '../hooks/useToast';
 import {
   MapPin,
   Home,
@@ -12,19 +14,23 @@ import {
   Navigation,
   Calendar,
   Database,
-  Loader2
+  Loader2,
+  Plus
 } from 'lucide-react';
 
 const SubmitProperty = () => {
   const navigate = useNavigate();
+  const { toasts, showToast, dismissToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
 
   const [formData, setFormData] = useState({
     suburb: '',
     district: '',
     region: 'Greater Accra',
-    propertyType: 'Detached House',
+    propertyType: 'Residential',
     price: '',
     rentalValue: '',
     landSize: '',
@@ -46,46 +52,79 @@ const SubmitProperty = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + imageFiles.length > 5) {
+      alert("You can only upload up to 5 images.");
+      return;
+    }
+    setImageFiles(prev => [...prev, ...files]);
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setImagePreviews(prev => [...prev, ...newPreviews]);
+  };
+
+  const removeImage = (index) => {
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    setImagePreviews(prev => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const payload = {
-        location: {
-          region: formData.region,
-          district: formData.district,
-          suburb: formData.suburb,
-          coordinates: {
-            lat: Number(formData.lat) || undefined,
-            lng: Number(formData.lng) || undefined
-          }
-        },
-        propertyInfo: {
-          propertyType: formData.propertyType,
-          landSize: Number(formData.landSize),
-          size: Number(formData.buildingSize),
-          rooms: Number(formData.rooms),
-          yearBuilt: Number(formData.yearBuilt),
-          condition: formData.condition
-        },
-        marketData: {
-          salePrice: Number(formData.price),
-          rentalValue: Number(formData.rentalValue),
-          capRate: Number(formData.capRate),
-          occupancyRate: Number(formData.occupancyRate),
-          constructionCostPerSqm: Number(formData.constructionCostPerSqm),
-          marketDemandIndicator: formData.marketDemandIndicator,
-          transactionDate: formData.transactionDate
-        },
-        dataSourceReference: formData.dataSourceReference
+      const formDataToSend = new FormData();
+
+      const locationData = {
+        region: formData.region,
+        district: formData.district,
+        suburb: formData.suburb,
+        coordinates: {
+          lng: Number(formData.lng),
+          lat: Number(formData.lat)
+        }
       };
 
-      await api.post('/properties', payload);
+      const propertyInfoData = {
+        propertyType: formData.propertyType,
+        landSize: Number(formData.landSize),
+        size: Number(formData.buildingSize),
+        rooms: Number(formData.rooms),
+        yearBuilt: Number(formData.yearBuilt),
+        condition: formData.condition
+      };
+
+      const marketDataObj = {
+        salePrice: Number(formData.price),
+        rentalValue: Number(formData.rentalValue),
+        capRate: Number(formData.capRate),
+        occupancyRate: Number(formData.occupancyRate),
+        constructionCostPerSqm: Number(formData.constructionCostPerSqm),
+        marketDemandIndicator: formData.marketDemandIndicator,
+        transactionDate: formData.transactionDate
+      };
+
+      formDataToSend.append('location', JSON.stringify(locationData));
+      formDataToSend.append('propertyInfo', JSON.stringify(propertyInfoData));
+      formDataToSend.append('marketData', JSON.stringify(marketDataObj));
+      formDataToSend.append('dataSourceReference', formData.dataSourceReference);
+
+      imageFiles.forEach(file => {
+        formDataToSend.append('images', file);
+      });
+
+      await api.post('/properties', formDataToSend, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      showToast('⏳ Property Submitted', 'Your property is pending admin review and will be published once approved.', 'pending');
       setSubmitted(true);
       setTimeout(() => navigate('/properties'), 3000);
     } catch (err) {
       console.error(err);
-      alert('Error submitting property. Please check your data.');
+      const errorMsg = err.response?.data?.msg || 'There was an error submitting your property. Please check your data.';
+      showToast('Submission Failed', errorMsg, 'rejected');
     } finally {
       setLoading(false);
     }
@@ -95,6 +134,7 @@ const SubmitProperty = () => {
 
   return (
     <div className="flex bg-slate-50 min-h-screen">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <Sidebar />
       <main className="flex-1 overflow-y-auto">
         <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 sticky top-0 z-40 flex justify-between items-center">
@@ -125,8 +165,7 @@ const SubmitProperty = () => {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6 md:space-y-8">
-              {/* Location Section */}
+            <form onSubmit={handleSubmit} className="space-y-8 md:space-y-12">
               <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-slate-100">
                 <div className="flex items-center space-x-3 mb-6 md:mb-8">
                   <div className="w-10 h-10 bg-blue-50 text-accent rounded-xl flex items-center justify-center">
@@ -187,12 +226,12 @@ const SubmitProperty = () => {
                   <div className="space-y-2">
                     <label className="text-xs font-black text-slate-400 uppercase ml-1">Property Type</label>
                     <select name="propertyType" value={formData.propertyType} onChange={handleChange} className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl px-5 py-3 focus:border-accent transition outline-none font-bold text-primary">
-                      <option>Detached House</option>
-                      <option>Semi-Detached</option>
-                      <option>Apartment</option>
-                      <option>Office Building</option>
-                      <option>Commercial Space</option>
+                      <option>Residential</option>
+                      <option>Commercial</option>
                       <option>Land</option>
+                      <option>Office</option>
+                      <option>Mixed-use</option>
+                      <option>Industrial</option>
                     </select>
                   </div>
                   <div className="space-y-2">
@@ -277,13 +316,49 @@ const SubmitProperty = () => {
                 </div>
               </div>
 
+              {/* Image Upload Section */}
+              <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-slate-100">
+                <div className="flex items-center space-x-3 mb-6 md:mb-8">
+                  <div className="w-10 h-10 bg-blue-50 text-accent rounded-xl flex items-center justify-center">
+                    <Calendar size={20} />
+                  </div>
+                  <h2 className="text-xl font-black text-primary uppercase tracking-tight">4. Property Images</h2>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
+                        <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg"
+                        >
+                          <Database size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    {imageFiles.length < 5 && (
+                      <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:border-accent hover:bg-slate-50 transition group">
+                        <div className="w-10 h-10 bg-slate-50 group-hover:bg-blue-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:text-accent mb-2">
+                          <Plus size={24} className="text-slate-400" />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Upload</span>
+                        <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" />
+                      </label>
+                    )}
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Up to 5 property photos (Indoor/Outdoor).</p>
+                </div>
+              </div>
+
               {/* Data Source Section */}
               <div className="bg-slate-900 rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 shadow-xl border border-slate-800 text-white">
                 <div className="flex items-center space-x-3 mb-6 md:mb-8">
                   <div className="w-10 h-10 bg-white/10 text-white rounded-xl flex items-center justify-center">
                     <Database size={20} />
                   </div>
-                  <h2 className="text-xl font-black uppercase tracking-tight">4. Source Verification</h2>
+                  <h2 className="text-xl font-black uppercase tracking-tight">5. Source Verification</h2>
                 </div>
 
                 <div className="space-y-4">
@@ -311,7 +386,7 @@ const SubmitProperty = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-accent text-white px-12 py-5 rounded-3xl font-black text-lg shadow-2xl shadow-blue-500/20 hover:scale-[1.03] active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                  className="bg-accent text-white px-12 py-5 rounded-3xl font-black text-lg shadow-2xl shadow-blue-500/20 hover:scale-[1.03] active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 "
                 >
                   {loading ? (
                     <>

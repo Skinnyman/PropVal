@@ -13,11 +13,55 @@ import {
   Home,
   Loader2
 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 const ValuationWorkspace = () => {
+  const location = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+    if (location.state?.selectedMethod) {
+      setMethod(location.state.selectedMethod);
+      setStep(2);
+    }
+    
+    const fetchPreFillProperty = async () => {
+      if (location.state?.propertyId) {
+        try {
+          const res = await api.get(`/properties/${location.state.propertyId}`);
+          const p = res.data;
+          setSubject({
+            region: p.location?.region || 'Greater Accra',
+            district: p.location?.district || '',
+            suburb: p.location?.suburb || '',
+            propertyType: p.propertyInfo?.propertyType || 'Residential',
+            size: p.propertyInfo?.size || '',
+            landSize: p.propertyInfo?.landSize || '',
+            rooms: p.propertyInfo?.rooms || '',
+            yearBuilt: p.propertyInfo?.yearBuilt || new Date().getFullYear(),
+            condition: p.propertyInfo?.condition || 'Good'
+          });
+          
+          if (p.marketData) {
+            setIncomeData(prev => ({
+              ...prev,
+              annualRentalIncome: p.marketData.rentalValue || '',
+              capRate: p.marketData.capRate || ''
+            }));
+            setCostData(prev => ({
+              ...prev,
+              constructionCostPerSqm: p.marketData.constructionCostPerSqm || ''
+            }));
+          }
+          
+          setStep(2); // Jump to subject details
+        } catch (err) {
+          console.error('Error pre-filling property:', err);
+        }
+      }
+    };
+    
+    fetchPreFillProperty();
+  }, [location.state]);
   const [step, setStep] = useState(1);
   const [method, setMethod] = useState('Comparable Sales');
   const [loading, setLoading] = useState(false);
@@ -29,7 +73,7 @@ const ValuationWorkspace = () => {
     region: 'Greater Accra',
     district: '',
     suburb: '',
-    propertyType: 'Detached House',
+    propertyType: 'Residential',
     size: '',
     landSize: '',
     rooms: '',
@@ -176,9 +220,8 @@ const ValuationWorkspace = () => {
         </header>
 
         <div className="p-4 md:p-8 max-w-5xl mx-auto relative">
-          {/* Professional check removed to allow all users access */}
-          {/* Progress Stepper */}
-          <div className="flex items-center justify-between mb-8 md:mb-12 px-2 md:px-4 overflow-x-auto pb-4 hide-scrollbar">
+              {/* Progress Stepper */}
+              <div className="flex items-center justify-between mb-8 md:mb-12 px-2 md:px-4 overflow-x-auto pb-4 hide-scrollbar">
             {[1, 2, 3, 4, 5].map((s) => (
               <React.Fragment key={s}>
                 <div className="flex flex-col items-center">
@@ -186,7 +229,7 @@ const ValuationWorkspace = () => {
                     }`}>
                     {loading && step === s ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : s}
                   </div>
-                  <span className={`text-[10px] md:text-xs mt-2 font-medium ${step >= s ? 'text-accent' : 'text-slate-400'} whitespace-nowrap`}>
+                  <span className={`text-[10px] mt-2 font-medium ${step >= s ? 'text-accent' : 'text-slate-400'} whitespace-nowrap`}>
                     {s === 1 ? 'Method' : s === 2 ? 'Subject' : s === 3 ? 'Comps' : s === 4 ? 'Calc' : 'Final'}
                   </span>
                 </div>
@@ -283,7 +326,7 @@ const ValuationWorkspace = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Region</label>
-                    <select 
+                    <select
                       name="region" value={subject.region} onChange={onSubjectChange}
                       className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                     >
@@ -298,69 +341,69 @@ const ValuationWorkspace = () => {
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">District</label>
-                    <input 
+                    <input
                       name="district" value={subject.district} onChange={onSubjectChange}
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition" 
-                      placeholder="Accra Metropolitan" 
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition"
+                      placeholder="Accra Metropolitan"
                     />
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Suburb</label>
-                    <input 
+                    <input
                       name="suburb" value={subject.suburb} onChange={onSubjectChange}
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition" 
-                      placeholder="e.g. East Legon" 
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition"
+                      placeholder="e.g. East Legon"
                     />
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Property Type</label>
-                    <select 
+                    <select
                       name="propertyType" value={subject.propertyType} onChange={onSubjectChange}
                       className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                     >
-                      <option>Detached House</option>
-                      <option>Apartment</option>
-                      <option>Townhouse</option>
-                      <option>Office Space</option>
-                      <option>Land</option>
+                      <option>Residential</option>
                       <option>Commercial</option>
+                      <option>Land</option>
+                      <option>Office</option>
+                      <option>Mixed-use</option>
+                      <option>Industrial</option>
                     </select>
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Building Size (sqm)</label>
-                    <input 
+                    <input
                       name="size" value={subject.size} onChange={onSubjectChange}
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition" 
-                      placeholder="350" 
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition"
+                      placeholder="350"
                     />
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Land Size (sqm/acres)</label>
-                    <input 
+                    <input
                       name="landSize" value={subject.landSize} onChange={onSubjectChange}
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition" 
-                      placeholder="0.5" 
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition"
+                      placeholder="0.5"
                     />
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Rooms/Units</label>
-                    <input 
+                    <input
                       name="rooms" value={subject.rooms} onChange={onSubjectChange}
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition" 
-                      placeholder="4" 
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition"
+                      placeholder="4"
                     />
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Year Built</label>
-                    <input 
+                    <input
                       name="yearBuilt" value={subject.yearBuilt} onChange={onSubjectChange}
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition" 
-                      placeholder="2022" 
+                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition"
+                      placeholder="2022"
                     />
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Condition</label>
-                    <select 
+                    <select
                       name="condition" value={subject.condition} onChange={onSubjectChange}
                       className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                     >
@@ -382,30 +425,30 @@ const ValuationWorkspace = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Annual Rent (GHS)</label>
-                        <input 
+                        <input
                           type="number" name="annualRentalIncome" value={incomeData.annualRentalIncome} onChange={onIncomeChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" 
+                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                         />
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Vacancy Rate (%)</label>
-                        <input 
+                        <input
                           type="number" name="vacancyRate" value={incomeData.vacancyRate} onChange={onIncomeChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" 
+                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                         />
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Expenses (GHS)</label>
-                        <input 
+                        <input
                           type="number" name="operatingExpenses" value={incomeData.operatingExpenses} onChange={onIncomeChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" 
+                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                         />
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cap Rate (%)</label>
-                        <input 
+                        <input
                           type="number" name="capRate" value={incomeData.capRate} onChange={onIncomeChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" 
+                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                         />
                       </div>
                     </div>
@@ -421,23 +464,23 @@ const ValuationWorkspace = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Land Value (GHS)</label>
-                        <input 
+                        <input
                           type="number" name="landValue" value={costData.landValue} onChange={onCostChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" 
+                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                         />
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Const. Cost / sqm</label>
-                        <input 
+                        <input
                           type="number" name="constructionCostPerSqm" value={costData.constructionCostPerSqm} onChange={onCostChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" 
+                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                         />
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Total Depreciation</label>
-                        <input 
+                        <input
                           type="number" name="depreciation" value={costData.depreciation} onChange={onCostChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" 
+                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
                         />
                       </div>
                     </div>
@@ -531,17 +574,15 @@ const ValuationWorkspace = () => {
                 <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 mb-10">
                   {properties.length > 0 ? (
                     properties.map((comp) => (
-                      <div 
-                        key={comp._id} 
+                      <div
+                        key={comp._id}
                         onClick={() => toggleComp(comp._id)}
-                        className={`flex items-center justify-between p-6 rounded-2xl border-2 transition cursor-pointer group ${
-                          selectedComps.includes(comp._id) ? 'border-accent bg-blue-50/30' : 'border-slate-50 hover:border-slate-200 hover:bg-slate-50'
-                        }`}
+                        className={`flex items-center justify-between p-6 rounded-2xl border-2 transition cursor-pointer group ${selectedComps.includes(comp._id) ? 'border-accent bg-blue-50/30' : 'border-slate-50 hover:border-slate-200 hover:bg-slate-50'
+                          }`}
                       >
                         <div className="flex items-center space-x-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition ${
-                            selectedComps.includes(comp._id) ? 'bg-accent text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-accent/10 group-hover:text-accent'
-                          }`}>
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition ${selectedComps.includes(comp._id) ? 'bg-accent text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-accent/10 group-hover:text-accent'
+                            }`}>
                             <Plus size={20} />
                           </div>
                           <div>
@@ -587,7 +628,7 @@ const ValuationWorkspace = () => {
                     <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Methodology</span>
                     <span className="font-black text-primary px-3 py-1 bg-white rounded-lg shadow-sm border border-slate-100">{valuationResult.method}</span>
                   </div>
-                  
+
                   <div className="space-y-4">
                     {valuationResult.method === 'Comparable Sales' && (
                       <>
@@ -618,7 +659,7 @@ const ValuationWorkspace = () => {
                         </div>
                         <div className="flex justify-between text-sm pt-2 border-t border-dashed border-slate-200">
                           <span className="text-slate-600 font-bold">Net Operating Income</span>
-                          <span className="font-black text-emerald-600">GHS {(valuationResult.incomeData?.annualRentalIncome * (1 - valuationResult.incomeData?.vacancyRate/100) - valuationResult.incomeData?.operatingExpenses).toLocaleString()}</span>
+                          <span className="font-black text-emerald-600">GHS {(valuationResult.incomeData?.annualRentalIncome * (1 - valuationResult.incomeData?.vacancyRate / 100) - valuationResult.incomeData?.operatingExpenses).toLocaleString()}</span>
                         </div>
                       </>
                     )}
@@ -701,12 +742,12 @@ const ValuationWorkspace = () => {
                       <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] md:text-xs mb-2">Total Estimated Value</p>
                       <h3 className="text-4xl md:text-5xl font-black text-accent">GHS {valuationResult.finalValue?.toLocaleString()}</h3>
                       <p className="text-slate-400 mt-4 text-sm leading-relaxed">
-                        Report ID: <span className="text-white font-mono">{valuationResult._id}</span><br/>
+                        Report ID: <span className="text-white font-mono">{valuationResult._id}</span><br />
                         Generated on {new Date().toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex justify-center">
-                      <button 
+                      <button
                         onClick={downloadReport}
                         className="w-full flex items-center justify-center space-x-3 p-6 bg-accent text-white rounded-3xl font-black shadow-xl shadow-blue-500/20 hover:scale-[1.05] transition active:scale-95"
                       >

@@ -7,6 +7,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   company: { type: String },
   role: { type: String, enum: ['Valuer', 'Admin'], default: 'Valuer' },
+  accountStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Approved' },
   subscriptionStatus: { type: String, enum: ['Free', 'Professional'], default: 'Free' },
   savedProperties: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
   createdAt: { type: Date, default: Date.now }

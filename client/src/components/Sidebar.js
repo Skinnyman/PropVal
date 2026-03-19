@@ -6,12 +6,11 @@ import {
   FileText,
   Settings,
   LogOut,
-  CreditCard,
   Search,
   ShieldAlert,
-  PlusSquare,
   Menu,
-  X
+  X,
+  Map as MapIcon
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 
@@ -23,12 +22,11 @@ const Sidebar = () => {
 
   const allMenuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['Valuer', 'Admin'] },
-    { icon: Search, label: 'Explorer', path: '/properties', roles: ['Valuer', 'Admin'] },
-    { icon: PlusSquare, label: 'Contribute Data', path: '/submit-property', roles: ['Valuer', 'Admin'] },
+    { icon: Calculator, label: 'Valuation Calculator', path: '/valuation', roles: ['Valuer', 'Admin'] },
+    { icon: Search, label: 'Property Database', path: '/properties', roles: ['Valuer', 'Admin'] },
+    { icon: MapIcon, label: 'Property Map', path: '/map', roles: ['Valuer', 'Admin'] },
+    { icon: FileText, label: 'Report Generator', path: '/reports', roles: ['Valuer', 'Admin'] },
     { icon: ShieldAlert, label: 'Admin Portal', path: '/admin', roles: ['Admin'] },
-    { icon: FileText, label: 'Valuation', path: '/valuation', roles: ['Valuer'] },
-    { icon: FileText, label: 'Reports', path: '/reports', roles: ['Valuer'] },
-    { icon: CreditCard, label: 'Subscription', path: '/subscription', roles: ['Valuer'] },
     { icon: Settings, label: 'Settings', path: '/settings', roles: ['Valuer', 'Admin'] },
   ];
 
@@ -41,9 +39,9 @@ const Sidebar = () => {
       {/* Mobile Hamburger Button */}
       <button
         onClick={toggleSidebar}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-primary text-white rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-accent"
+        className="md:hidden fixed top-4 left-4 z-[60] p-3 bg-primary text-white rounded-2xl shadow-2xl shadow-slate-900/20 active:scale-95 transition-transform"
       >
-        <Menu size={24} />
+        <Menu size={20} />
       </button>
 
       {/* Screen Overlay for Mobile */}
@@ -89,6 +87,15 @@ const Sidebar = () => {
         </nav>
 
         <div className="p-4 border-t border-slate-800">
+          <div className="flex items-center space-x-3 px-4 py-4 mb-2">
+            <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white font-black text-xs shadow-lg shadow-blue-500/20">
+              {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-bold text-sm truncate">{user?.name || 'User'}</p>
+              <p className="text-slate-500 font-bold text-[10px] uppercase tracking-widest">{user?.role || 'Valuer'}</p>
+            </div>
+          </div>
           <button
             onClick={logout}
             className="flex items-center space-x-3 px-4 py-3 w-full rounded-xl hover:bg-red-500/10 hover:text-red-400 transition text-slate-400"

@@ -12,6 +12,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import AdminDashboard from './pages/AdminDashboard';
 import SubmitProperty from './pages/SubmitProperty';
+import AdminLogin from './pages/AdminLogin';
+import AdminRegister from './pages/AdminRegister';
+import PropertyDetails from './pages/PropertyDetails';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 
@@ -24,10 +27,14 @@ function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/admin-register" element={<AdminRegister />} />
 
             {/* Protected Routes */}
             <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/properties" element={<PrivateRoute><PropertyExplorer /></PrivateRoute>} />
+            <Route path="/properties/:id" element={<PrivateRoute><PropertyDetails /></PrivateRoute>} />
+            <Route path="/map" element={<PrivateRoute><PropertyExplorer defaultView="map" /></PrivateRoute>} />
             <Route path="/valuation" element={<PrivateRoute><ValuationWorkspace /></PrivateRoute>} />
             <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
             <Route path="/subscription" element={<PrivateRoute><Subscription /></PrivateRoute>} />

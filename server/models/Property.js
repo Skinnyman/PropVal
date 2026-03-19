@@ -6,8 +6,8 @@ const PropertySchema = new mongoose.Schema({
     district: { type: String },
     suburb: { type: String, required: true },
     coordinates: {
-      lat: { type: Number },
-      lng: { type: Number }
+      type: { type: String, default: 'Point' },
+      coordinates: { type: [Number] } // [lng, lat]
     }
   },
   propertyInfo: {
@@ -16,7 +16,8 @@ const PropertySchema = new mongoose.Schema({
     size: { type: Number }, // in sqm (was buildingSize)
     rooms: { type: Number }, // was numberOfRooms
     yearBuilt: { type: Number },
-    condition: { type: String }
+    condition: { type: String },
+    images: { type: [String] }
   },
   marketData: {
     salePrice: { type: Number },
@@ -43,5 +44,7 @@ const PropertySchema = new mongoose.Schema({
   ],
   createdAt: { type: Date, default: Date.now }
 });
+
+PropertySchema.index({ "location.coordinates": "2dsphere" });
 
 module.exports = mongoose.model('Property', PropertySchema);

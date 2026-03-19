@@ -44,10 +44,14 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
-  const logout = () => {
+  const clearUser = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+  };
+
+  const logout = () => {
+    clearUser();
     window.location.href = '/login';
   };
 
@@ -61,8 +65,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async (formData) => {
+    const res = await api.put('/auth/profile', formData);
+    localStorage.setItem('user', JSON.stringify(res.data));
+    setUser(res.data);
+    return res.data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, clearUser, refreshUser, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
