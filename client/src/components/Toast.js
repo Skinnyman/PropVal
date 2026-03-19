@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { CheckCircle, Clock, XCircle, X, Info } from 'lucide-react';
 
 export const TOAST_TYPES = {
