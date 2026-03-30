@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Property = require('../models/Property');
 const Valuation = require('../models/Valuation');
+const MarketData = require('../models/MarketData');
 
 // @route   GET api/admin/users
 // @desc    Get all users for management (Admin only)
@@ -80,6 +81,78 @@ router.get('/valuations', auth, async (req, res) => {
       .sort({ createdAt: -1 });
     
     res.json(valuations);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   GET api/admin/properties
+// @desc    Get all properties for management (Admin only)
+router.get('/properties', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ msg: 'Access denied: Admin role required' });
+    }
+    const properties = await Property.find()
+      .populate('uploadedBy', 'name email company')
+      .sort({ createdAt: -1 });
+    res.json(properties);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   GET api/admin/market-data
+// @desc    Get all market data for management (Admin only)
+router.get('/market-data', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ msg: 'Access denied: Admin role required' });
+    }
+    const data = await MarketData.find()
+      .populate('uploadedBy', 'name email')
+      .sort({ updatedAt: -1 });
+    res.json(data);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   PATCH api/admin/market-data/:id/verify
+// @desc    Verify/Approve market data entry (Admin only)
+router.patch('/market-data/:id/verify', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ msg: 'Access denied: Admin role required' });
+    }
+    const data = await MarketData.findById(req.params.id);
+    if (!data) return res.status(404).json({ msg: 'Record not found' });
+
+    data.isVerified = true;
+    await data.save();
+    res.json(data);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   PATCH api/admin/market-data/:id
+// @desc    Update market data entry (Admin only)
+router.patch('/market-data/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ msg: 'Access denied: Admin role required' });
+    }
+    const data = await MarketData.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true }
+    );
+    res.json(data);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

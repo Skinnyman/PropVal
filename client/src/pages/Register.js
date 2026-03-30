@@ -64,7 +64,7 @@ const Register = () => {
     if (pass.length > 5) score++;
     if (pass.length >= 8) score++;
     if (/[a-zA-Z]/.test(pass) && /[0-9]/.test(pass)) score++;
-    
+
     if (score === 1) return { score: 33, label: 'Weak', color: 'bg-red-500' };
     if (score === 2) return { score: 66, label: 'Fair', color: 'bg-yellow-500' };
     if (score === 3) return { score: 100, label: 'Strong', color: 'bg-emerald-500' };
@@ -124,7 +124,7 @@ const Register = () => {
                 className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-accent transition outline-none text-slate-900"
                 placeholder="••••••••"
               />
-              
+
               {/* Password Strength Indicator */}
               <div className="mt-3 px-1">
                 <div className="flex justify-between items-center mb-1.5">
@@ -134,7 +134,7 @@ const Register = () => {
                   </span>
                 </div>
                 <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full transition-all duration-500 ease-out ${strength.color}`}
                     style={{ width: `${strength.score}%` }}
                   ></div>
@@ -169,9 +169,9 @@ const Register = () => {
               />
             </div>
 
-            <p className="text-xs text-slate-400 font-medium px-1 pt-2">
+            {/* <p className="text-xs text-slate-400 font-medium px-1 pt-2">
               Are you an Administrator? <a href="/admin-register" className="text-slate-600 hover:text-accent font-bold transition">Register here</a>
-            </p>
+            </p> */}
 
             <button
               type="submit"

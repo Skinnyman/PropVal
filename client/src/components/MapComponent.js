@@ -7,19 +7,19 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 const CIRCLE_COLOR_EXPR = [
   'match',
   ['get', 'type'],
-  'Residential',  '#1e293b',
-  'residential',  '#1e293b',
-  'Commercial',   '#fbbf24',
-  'commercial',   '#fbbf24',
-  'Office',       '#0d9488',
-  'office',       '#0d9488',
-  'Mixed-use',    '#9333ea',
-  'mixed-use',    '#9333ea',
-  'Mixed-Use',    '#9333ea',
-  'Industrial',   '#dc2626',
-  'industrial',   '#dc2626',
-  'Land',         '#94a3b8',
-  'land',         '#94a3b8',
+  'Residential', '#1e293b',
+  'residential', '#1e293b',
+  'Commercial', '#fbbf24',
+  'commercial', '#fbbf24',
+  'Office', '#0d9488',
+  'office', '#0d9488',
+  'Mixed-use', '#9333ea',
+  'mixed-use', '#9333ea',
+  'Mixed-Use', '#9333ea',
+  'Industrial', '#dc2626',
+  'industrial', '#dc2626',
+  'Land', '#94a3b8',
+  'land', '#94a3b8',
   '#3b82f6' // fallback blue
 ];
 
@@ -354,8 +354,12 @@ const MapComponent = ({
   }
 
   return (
-    <div className="w-full h-full rounded-[2rem] overflow-hidden border border-slate-100 shadow-xl bg-slate-50 relative">
-      <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+    <div className="w-full h-full md:rounded-[2rem] overflow-hidden md:border border-slate-100 shadow-xl bg-slate-100 relative">
+      <div 
+        ref={mapContainerRef} 
+        className="w-full h-full bg-slate-100" 
+        style={{ minHeight: 'inherit' }}
+      />
     </div>
   );
 };

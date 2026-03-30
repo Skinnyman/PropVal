@@ -15,6 +15,7 @@ import SubmitProperty from './pages/SubmitProperty';
 import AdminLogin from './pages/AdminLogin';
 import AdminRegister from './pages/AdminRegister';
 import PropertyDetails from './pages/PropertyDetails';
+import DataBank from './pages/DataBank';
 import PrivateRoute from './components/PrivateRoute';
 import AdminRoute from './components/AdminRoute';
 
@@ -39,6 +40,7 @@ function App() {
             <Route path="/reports" element={<PrivateRoute><Reports /></PrivateRoute>} />
             <Route path="/subscription" element={<PrivateRoute><Subscription /></PrivateRoute>} />
             <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/databank" element={<PrivateRoute><DataBank /></PrivateRoute>} />
 
             <Route path="/submit-property" element={<PrivateRoute><SubmitProperty /></PrivateRoute>} />
             {/* Admin Routes */}

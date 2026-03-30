@@ -105,12 +105,12 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="text-center mt-10 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+          {/* <div className="text-center mt-10 p-4 bg-slate-50 rounded-2xl border border-slate-100">
             <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-2">System Administrator?</p>
             <a href="/admin-login" className="text-slate-900 font-black hover:text-accent transition underline decoration-2 underline-offset-4">
               Access Admin Portal
             </a>
-          </div>
+          </div> */}
 
           <div className="text-center mt-8 space-y-4">
             <p className="text-slate-400 font-bold text-sm tracking-wide">

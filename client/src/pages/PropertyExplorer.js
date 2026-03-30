@@ -286,9 +286,9 @@ const PropertyExplorer = ({ defaultView = 'grid' }) => {
 
 
   return (
-    <div className="flex bg-slate-50 min-h-screen">
+    <div className="flex bg-slate-50 h-[100vh] w-full overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-hidden flex flex-col">
+      <main className="flex-1 flex flex-col h-full bg-slate-50 min-h-0 min-w-0">
         <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-6 sticky top-0 z-40">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 max-w-7xl mx-auto w-full">
             <div>
@@ -332,7 +332,7 @@ const PropertyExplorer = ({ defaultView = 'grid' }) => {
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden flex flex-col p-4 md:p-8 max-w-[1600px] mx-auto w-full">
+        <div className="flex-1 overflow-y-auto flex flex-col p-4 md:p-8 max-w-[1600px] mx-auto w-full hide-scrollbar">
           {/* Search & Filter Bar - Conditional for Grid View */}
           {viewMode === 'grid' && (
             <div className="bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row gap-4 mb-8 sticky top-0 z-30 slide-in-from-top-4 animate-in">
@@ -350,7 +350,7 @@ const PropertyExplorer = ({ defaultView = 'grid' }) => {
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value)}
-                  className="w-full md:w-auto bg-slate-50 border-none rounded-2xl px-8 py-4 font-bold text-primary focus:ring-2 focus:ring-accent transition outline-none appearance-none"
+                  className="w-full md:w-auto bg-slate-50 border-none rounded-2xl px-8 py-4 font-bold text-primary focus:ring-2 focus:ring-accent transition outline-none appearance-none "
                 >
                   <option value="All">All Types</option>
                   <option value="Residential">Residential</option>
@@ -369,7 +369,7 @@ const PropertyExplorer = ({ defaultView = 'grid' }) => {
 
           {/* Type Pills for Map View */}
           {viewMode === 'map' && (
-            <div className="flex items-center justify-end space-x-3 mb-8 overflow-x-auto pb-2 hide-scrollbar">
+            <div className="flex items-center justify-end space-x-3 mb-8 overflow-x-auto pb-2 hide-scrollbar ">
               {['All', 'Residential', 'Commercial', 'Office', 'Mixed-use', 'Industrial'].map(type => (
                 <button
                   key={type}
@@ -408,9 +408,9 @@ const PropertyExplorer = ({ defaultView = 'grid' }) => {
               )}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col md:flex-row gap-6 overflow-hidden h-[75vh] md:h-[calc(100vh-250px)] min-h-[500px] mb-8">
+            <div className="flex flex-col md:flex-row gap-6 relative md:h-full md:pb-0">
               {/* Map Container with Overlays */}
-              <div className="flex-1 relative rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-white group/map h-full">
+              <div className="w-full h-[65vh] min-h-[400px] md:h-full md:flex-1 relative rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-100 bg-white group/map shrink-0">
                 <MapComponent
                   properties={filteredProperties}
                   onPropertySelect={handlePropertySelect}
@@ -541,7 +541,7 @@ const PropertyExplorer = ({ defaultView = 'grid' }) => {
               </div>
 
               {/* Redesigned Map Sidebar */}
-              <aside className="w-[320px] flex flex-col gap-5 animate-in fade-in slide-in-from-right-12 duration-700">
+              <aside className="w-full md:w-[320px] h-auto md:h-full shrink-0 flex flex-col gap-5 animate-in fade-in slide-in-from-right-12 duration-700">
                 {/* Instruction Card */}
                 <div className="bg-slate-900 rounded-[2.5rem] p-7 text-white shadow-2xl flex items-center space-x-4 border border-white/5 relative overflow-hidden group/instr">
                   <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-accent shrink-0 relative z-10 group-hover/instr:scale-110 transition-transform">

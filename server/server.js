@@ -38,6 +38,7 @@ app.use('/api/properties', require('./routes/properties'));
 app.use('/api/valuations', require('./routes/valuations'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/market-data', require('./routes/marketData'));
 
 
 app.get('/', (req, res) => {

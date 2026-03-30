@@ -9,7 +9,6 @@ import {
   Plus,
   TrendingUp,
   Users,
-  Search,
   ShieldAlert,
   LayoutGrid,
   Building2,
@@ -50,6 +49,7 @@ const Dashboard = () => {
   const [recentValuations, setRecentValuations] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   // Fetch notifications (manual + once on mount)
   const fetchNotifications = useCallback(async () => {
@@ -134,23 +134,90 @@ const Dashboard = () => {
         <header className="bg-white border-b px-4 pl-16 md:px-8 py-4 md:py-5 flex items-center justify-between sticky top-0 z-40">
           <h1 className="text-xl md:text-2xl font-bold text-primary">Overview</h1>
           <div className="flex items-center space-x-4">
-            <div className="relative flex-1 md:flex-initial">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-xl text-xs md:text-sm focus:ring-2 focus:ring-accent w-full md:w-64 transition"
-              />
-            </div>
-            {/* Notification bell in header */}
+            {/* Notification bell in header with Dropdown */}
             <div className="relative">
-              <button className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:text-primary transition">
+              <button 
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className={`w-10 h-10 border rounded-xl flex items-center justify-center transition ${isNotifOpen ? 'bg-accent/10 text-accent border-accent/20' : 'bg-slate-50 border-slate-100 text-slate-500 hover:text-primary'}`}
+              >
                 <Bell size={18} />
               </button>
               {notifications.filter(n => !n.read).length > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center">
                   {notifications.filter(n => !n.read).length}
                 </span>
+              )}
+              
+              {/* Notification Dropdown */}
+              {isNotifOpen && (
+                <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 z-50 overflow-hidden flex flex-col max-h-[500px] animate-in slide-in-from-top-2 fade-in duration-200">
+                  <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                    <h3 className="font-bold text-primary flex items-center">
+                      <Bell size={14} className="mr-2 text-accent" />
+                      Notifications
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={fetchNotifications}
+                        disabled={notifLoading}
+                        className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-accent transition disabled:opacity-50"
+                      >
+                        {notifLoading ? 'Refreshing...' : 'Refresh'}
+                      </button>
+                      <button onClick={() => setIsNotifOpen(false)} className="text-slate-400 hover:text-slate-700 bg-white p-1 rounded-full shadow-sm border border-slate-100">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto w-full bg-white">
+                    {notifLoading ? (
+                      <div className="flex justify-center py-8">
+                        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-2">
+                          <Bell size={20} className="text-slate-300" />
+                        </div>
+                        <p className="text-slate-400 font-bold text-xs">No notifications yet</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-50">
+                        {notifications.map(n => {
+                          const config = NOTIF_CONFIG[n.type] || NOTIF_CONFIG.info;
+                          const Icon = config.icon;
+                          return (
+                            <div key={n._id} className={`flex items-start p-4 hover:bg-slate-50 transition ${!n.read ? 'bg-blue-50/20' : ''}`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 shrink-0 ${config.bg}`}>
+                                <Icon size={14} className={config.color} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <p className="text-xs font-bold text-primary truncate">{n.title}</p>
+                                  <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-[2px] rounded-md ${config.bg} ${config.color}`}>
+                                    {config.badge}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-snug truncate whitespace-normal line-clamp-2">{n.message}</p>
+                                <p className="text-[9px] text-slate-400 font-bold mt-1.5 uppercase tracking-widest">
+                                  {new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => deleteNotification(n._id)}
+                                title="Dismiss notification"
+                                className="ml-2 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition shrink-0"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
             <div className="w-10 h-10 bg-accent rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white font-bold">
@@ -235,83 +302,39 @@ const Dashboard = () => {
               </div>
             ))}
           </div>
-
-          {/* ─── Notifications Feed ─────────────────────────────── */}
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50 p-8 md:p-10 mb-10">
-            <div className="flex items-center justify-between mb-8">
-              <h3 className="text-xl font-black text-primary flex items-center">
-                <Bell size={20} className="mr-3 text-accent" />
-                Notifications
-              </h3>
-              <div className="flex items-center gap-3">
-                {notifications.length > 0 && (
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    {notifications.length} update{notifications.length !== 1 ? 's' : ''}
-                  </span>
-                )}
-                <button
-                  onClick={fetchNotifications}
-                  disabled={notifLoading}
-                  title="Refresh notifications"
-                  className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl text-slate-500 transition disabled:opacity-50"
-                >
-                  <svg className={`w-3.5 h-3.5 ${notifLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {notifLoading ? 'Loading...' : 'Refresh'}
+          
+          {/* Market Intelligence CTA */}
+          <div 
+            onClick={() => navigate('/databank')}
+            className="mb-12 group cursor-pointer relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-white/5"
+          >
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+              <div className="max-w-xl">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+                    <BarChart3 size={20} />
+                  </div>
+                  <span className="text-[10px] font-black text-slate-400 tracking-[0.3em] uppercase">Market Intel</span>
+                </div>
+                <h3 className="text-2xl md:text-3xl font-black text-white mb-4">Market Intelligence <span className="text-accent underline decoration-white/20 underline-offset-4">Data Bank</span></h3>
+                <p className="text-slate-400 text-sm font-medium leading-relaxed">
+                  Access verified Ghana construction costs, material prices, inflation snapshots, and critical market indicators. All the data valuers need, updated for Q1 2025.
+                </p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="hidden lg:flex flex-col items-end mr-4">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Updated</p>
+                  <p className="text-white font-bold text-xs uppercase px-2.5 py-1 bg-white/5 rounded-lg border border-white/10">March 2025</p>
+                </div>
+                <button className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center shadow-2xl transition group-hover:bg-accent group-hover:text-white">
+                  Explore Data <ChevronRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
             </div>
-
-            {notifLoading ? (
-              <div className="flex justify-center py-10">
-                <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                  <Bell size={28} className="text-slate-300" />
-                </div>
-                <p className="text-slate-400 font-bold text-sm">No notifications yet</p>
-                <p className="text-slate-300 text-xs mt-1">Updates about your submitted properties will appear here.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {notifications.map(n => {
-                  const config = NOTIF_CONFIG[n.type] || NOTIF_CONFIG.info;
-                  const Icon = config.icon;
-                  return (
-                    <div
-                      key={n._id}
-                      className={`flex items-start p-5 rounded-2xl border ${config.bg} ${config.border} ${!n.read ? 'ring-1 ring-slate-200' : ''} transition group`}
-                    >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mr-4 shrink-0 bg-white shadow-sm`}>
-                        <Icon size={18} className={config.color} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm font-black text-primary">{n.title}</p>
-                          <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${config.bg} ${config.color} border ${config.border}`}>
-                            {config.badge}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">{n.message}</p>
-                        <p className="text-[10px] text-slate-300 font-bold mt-2 uppercase tracking-widest">
-                          {new Date(n.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => deleteNotification(n._id)}
-                        title="Dismiss notification"
-                        className="ml-4 p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-white transition shrink-0 opacity-0 group-hover:opacity-100"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            
+            {/* Abstract Visuals */}
+            <div className="absolute top-0 right-0 h-full w-1/2 bg-gradient-to-l from-blue-500/5 to-transparent pointer-events-none"></div>
+            <div className="absolute -right-20 -top-20 w-80 h-80 bg-accent/10 rounded-full blur-[100px] group-hover:bg-accent/20 transition-colors pointer-events-none"></div>
           </div>
 
           {/* Core Dashboard Grid */}
