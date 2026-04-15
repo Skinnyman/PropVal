@@ -10,7 +10,10 @@ const UserSchema = new mongoose.Schema({
   accountStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Approved' },
   subscriptionStatus: { type: String, enum: ['Free', 'Professional'], default: 'Free' },
   savedProperties: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  lastLogin: { type: Date, default: null },
+  lastActive: { type: Date, default: null },
+  totalSessionTime: { type: Number, default: 0 } // Accumulated session time in minutes
 });
 
 // User model without pre-save hook

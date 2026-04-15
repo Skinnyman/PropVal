@@ -13,8 +13,21 @@ router.get('/users', auth, async (req, res) => {
     if (req.user.role !== 'Admin') {
       return res.status(403).json({ msg: 'Access denied: Admin role required' });
     }
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
-    res.json(users);
+    const users = await User.find().select('-password').sort({ createdAt: -1 }).lean();
+    
+    const enrichedUsers = await Promise.all(users.map(async (user) => {
+      const propertyCount = await Property.countDocuments({ uploadedBy: user._id });
+      const marketDataCount = await MarketData.countDocuments({ uploadedBy: user._id });
+      return {
+        ...user,
+        contributionCounts: {
+          properties: propertyCount,
+          marketData: marketDataCount
+        }
+      };
+    }));
+
+    res.json(enrichedUsers);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

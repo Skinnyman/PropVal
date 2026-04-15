@@ -7,16 +7,16 @@ import {
   ArrowRight,
   DollarSign,
   ShieldCheck,
-  Download,
   AlertCircle,
   Calculator,
   Home,
   Loader2
 } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const ValuationWorkspace = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   useEffect(() => {
     window.scrollTo(0, 0);
     if (location.state?.selectedMethod) {
@@ -38,7 +38,8 @@ const ValuationWorkspace = () => {
             landSize: p.propertyInfo?.landSize || '',
             rooms: p.propertyInfo?.rooms || '',
             yearBuilt: p.propertyInfo?.yearBuilt || new Date().getFullYear(),
-            condition: p.propertyInfo?.condition || 'Good'
+            condition: p.propertyInfo?.condition || 'Good',
+            images: p.propertyInfo?.images || []
           });
           
           if (p.marketData) {
@@ -67,6 +68,7 @@ const ValuationWorkspace = () => {
   const [loading, setLoading] = useState(false);
   const [properties, setProperties] = useState([]);
   const [selectedComps, setSelectedComps] = useState([]);
+  const [compAdjustments, setCompAdjustments] = useState({});
   const [valuationResult, setValuationResult] = useState(null);
 
   const [subject, setSubject] = useState({
@@ -78,33 +80,44 @@ const ValuationWorkspace = () => {
     landSize: '',
     rooms: '',
     yearBuilt: new Date().getFullYear(),
-    condition: 'Good'
+    condition: 'Good',
+    images: []
   });
 
   const [incomeData, setIncomeData] = useState({
+    methodology: 'Direct Capitalization',
     annualRentalIncome: '',
     vacancyRate: '',
     operatingExpenses: '',
-    capRate: ''
+    capRate: '',
+    dcfProjections: [{ year: 1, grossIncome: '', expenses: '', netOperatingIncome: '', discountRate: '' }],
+    terminalValue: ''
   });
 
   const [costData, setCostData] = useState({
     landValue: '',
-    constructionCostPerSqm: '',
-    depreciation: ''
+    directCosts: '',
+    indirectCosts: '',
+    depreciation: { physical: '', functional: '', external: '', effectiveAge: '', economicLife: 50 },
+    constructionCostPerSqm: '', // Legacy support
   });
 
   const [residualData, setResidualData] = useState({
     gdv: '',
     constructionCosts: '',
     professionalFees: '',
-    financeCosts: '',
-    developerProfit: ''
+    financeRate: '',
+    financeDurationMonths: '',
+    developerProfitMargin: ''
   });
 
   const [profitData, setProfitData] = useState({
     grossAnnualRevenue: '',
+    purchases: '',
     operatingExpenses: '',
+    tenantCapital: '',
+    tenantReturnRate: '',
+    operatorRemuneration: '',
     capitalizationYield: ''
   });
 
@@ -114,8 +127,25 @@ const ValuationWorkspace = () => {
 
   const onIncomeChange = (e) => setIncomeData({ ...incomeData, [e.target.name]: e.target.value });
   const onCostChange = (e) => setCostData({ ...costData, [e.target.name]: e.target.value });
+  const onCostDepreciationChange = (e) => setCostData({ ...costData, depreciation: { ...costData.depreciation, [e.target.name]: e.target.value } });
   const onResidualChange = (e) => setResidualData({ ...residualData, [e.target.name]: e.target.value });
   const onProfitChange = (e) => setProfitData({ ...profitData, [e.target.name]: e.target.value });
+
+  const addDcfYear = () => {
+    setIncomeData({
+      ...incomeData,
+      dcfProjections: [
+        ...incomeData.dcfProjections, 
+        { year: incomeData.dcfProjections.length + 1, grossIncome: '', expenses: '', netOperatingIncome: '', discountRate: 10 }
+      ]
+    });
+  };
+
+  const onDcfChange = (index, field, value) => {
+    const projs = [...incomeData.dcfProjections];
+    projs[index][field] = value;
+    setIncomeData({ ...incomeData, dcfProjections: projs });
+  };
 
   const fetchComparables = async () => {
     setLoading(true);
@@ -131,11 +161,32 @@ const ValuationWorkspace = () => {
   };
 
   const toggleComp = (id) => {
-    if (selectedComps.includes(id)) {
-      setSelectedComps(selectedComps.filter(compId => compId !== id));
+    let newSelected = [...selectedComps];
+    if (newSelected.includes(id)) {
+      newSelected = newSelected.filter(compId => compId !== id);
     } else {
-      setSelectedComps([...selectedComps, id]);
+      newSelected.push(id);
     }
+    
+    // Sync adjustments object
+    const newAdj = { ...compAdjustments };
+    newSelected.forEach(cid => {
+      if (!newAdj[cid]) newAdj[cid] = { transactionAdjustments: [], propertyAdjustments: [] };
+    });
+    setCompAdjustments(newAdj);
+    setSelectedComps(newSelected);
+  };
+
+  const addCompAdjustment = (compId, type) => {
+    const newAdj = { ...compAdjustments };
+    newAdj[compId][type].push({ reason: '', percentage: '', amount: '' });
+    setCompAdjustments(newAdj);
+  };
+
+  const updateCompAdjustment = (compId, type, index, field, value) => {
+    const newAdj = { ...compAdjustments };
+    newAdj[compId][type][index][field] = value;
+    setCompAdjustments(newAdj);
   };
 
   const finalizeValuation = async () => {
@@ -147,17 +198,27 @@ const ValuationWorkspace = () => {
       if (method === 'Income Capitalization') {
         endpoint = '/valuations/income';
         payload.incomeData = {
+          methodology: incomeData.methodology,
           annualRentalIncome: Number(incomeData.annualRentalIncome),
           vacancyRate: Number(incomeData.vacancyRate),
           operatingExpenses: Number(incomeData.operatingExpenses),
-          capRate: Number(incomeData.capRate)
+          capRate: Number(incomeData.capRate),
+          terminalValue: Number(incomeData.terminalValue),
+          dcfProjections: incomeData.dcfProjections
         };
       } else if (method === 'Cost Method') {
         endpoint = '/valuations/cost';
         payload.costData = {
           landValue: Number(costData.landValue),
-          constructionCostPerSqm: Number(costData.constructionCostPerSqm),
-          depreciation: Number(costData.depreciation)
+          directCosts: Number(costData.directCosts),
+          indirectCosts: Number(costData.indirectCosts),
+          depreciation: {
+            physical: Number(costData.depreciation.physical),
+            functional: Number(costData.depreciation.functional),
+            external: Number(costData.depreciation.external),
+            effectiveAge: Number(costData.depreciation.effectiveAge),
+            economicLife: Number(costData.depreciation.economicLife)
+          }
         };
       } else if (method === 'Residual Method') {
         endpoint = '/valuations/residual';
@@ -165,19 +226,39 @@ const ValuationWorkspace = () => {
           gdv: Number(residualData.gdv),
           constructionCosts: Number(residualData.constructionCosts),
           professionalFees: Number(residualData.professionalFees),
-          financeCosts: Number(residualData.financeCosts),
-          developerProfit: Number(residualData.developerProfit)
+          financeRate: Number(residualData.financeRate),
+          financeDurationMonths: Number(residualData.financeDurationMonths),
+          developerProfitMargin: Number(residualData.developerProfitMargin)
         };
       } else if (method === 'Profit Method') {
         endpoint = '/valuations/profit';
         payload.profitData = {
           grossAnnualRevenue: Number(profitData.grossAnnualRevenue),
+          purchases: Number(profitData.purchases),
           operatingExpenses: Number(profitData.operatingExpenses),
+          tenantCapital: Number(profitData.tenantCapital),
+          tenantReturnRate: Number(profitData.tenantReturnRate),
+          operatorRemuneration: Number(profitData.operatorRemuneration),
           capitalizationYield: Number(profitData.capitalizationYield)
         };
       } else {
         payload.selectedComparables = selectedComps;
-        payload.adjustments = selectedComps.map(id => ({ propertyId: id, adjustmentValue: 0 }));
+        payload.adjustments = selectedComps.map(id => {
+          const adj = compAdjustments[id];
+          return {
+            propertyId: id,
+            transactionAdjustments: adj.transactionAdjustments.map(a => ({
+              reason: a.reason,
+              percentage: Number(a.percentage || 0),
+              amount: Number(a.amount || 0)
+            })).filter(a => a.percentage !== 0 || a.amount !== 0),
+            propertyAdjustments: adj.propertyAdjustments.map(a => ({
+              reason: a.reason,
+              percentage: Number(a.percentage || 0),
+              amount: Number(a.amount || 0)
+            })).filter(a => a.percentage !== 0 || a.amount !== 0)
+          }
+        });
       }
 
       const res = await api.post(endpoint, payload);
@@ -191,24 +272,7 @@ const ValuationWorkspace = () => {
   };
 
   const onFinalize = () => {
-    setStep(5);
-  };
-
-  const downloadReport = async () => {
-    if (!valuationResult) return;
-    try {
-      const response = await api.get(`/valuations/${valuationResult._id}/report`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `valuation-report-${valuationResult._id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-    } catch (err) {
-      console.error('Error downloading report:', err);
-    }
+    navigate('/reports');
   };
 
   return (
@@ -418,40 +482,73 @@ const ValuationWorkspace = () => {
 
                 {method === 'Income Capitalization' && (
                   <div className="mt-10 pt-10 border-t border-slate-100">
-                    <h3 className="text-xl font-bold text-primary mb-6 flex items-center">
-                      <DollarSign className="text-accent mr-2" size={20} />
-                      Income Data
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                      <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Annual Rent (GHS)</label>
-                        <input
-                          type="number" name="annualRentalIncome" value={incomeData.annualRentalIncome} onChange={onIncomeChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Vacancy Rate (%)</label>
-                        <input
-                          type="number" name="vacancyRate" value={incomeData.vacancyRate} onChange={onIncomeChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Expenses (GHS)</label>
-                        <input
-                          type="number" name="operatingExpenses" value={incomeData.operatingExpenses} onChange={onIncomeChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cap Rate (%)</label>
-                        <input
-                          type="number" name="capRate" value={incomeData.capRate} onChange={onIncomeChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
-                        />
-                      </div>
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-bold text-primary flex items-center">
+                        <DollarSign className="text-accent mr-2" size={20} />
+                        Income Data
+                      </h3>
+                      <select name="methodology" value={incomeData.methodology} onChange={onIncomeChange} className="bg-white border-2 border-slate-100 rounded-xl px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-accent">
+                        <option>Direct Capitalization</option>
+                        <option>DCF</option>
+                      </select>
                     </div>
+
+                    {incomeData.methodology === 'Direct Capitalization' ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="space-y-3">
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Annual Rent (GHS)</label>
+                          <input type="number" name="annualRentalIncome" value={incomeData.annualRentalIncome} onChange={onIncomeChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        </div>
+                        <div className="space-y-3">
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Vacancy Rate (%)</label>
+                          <input type="number" name="vacancyRate" value={incomeData.vacancyRate} onChange={onIncomeChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        </div>
+                        <div className="space-y-3">
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Expenses (GHS)</label>
+                          <input type="number" name="operatingExpenses" value={incomeData.operatingExpenses} onChange={onIncomeChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        </div>
+                        <div className="space-y-3">
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cap Rate (%)</label>
+                          <input type="number" name="capRate" value={incomeData.capRate} onChange={onIncomeChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="bg-slate-50 p-6 flex justify-between items-center bg-slate-50 border-none rounded-3xl">
+                          <div className="space-y-2">
+                             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Terminal Value (Reversion) GHS</label>
+                             <input type="number" name="terminalValue" value={incomeData.terminalValue} onChange={onIncomeChange} className="w-[300px] bg-white border border-slate-100 rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold text-primary" placeholder="Exit Value" />
+                          </div>
+                          <button onClick={addDcfYear} className="px-6 py-3 bg-white border-2 border-slate-100 rounded-xl font-bold text-primary hover:border-accent hover:text-accent transition flex items-center">
+                             <Plus size={16} className="mr-2" /> Add Year Projection
+                          </button>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left border-separate border-spacing-y-2">
+                            <thead>
+                              <tr>
+                                <th className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Year</th>
+                                <th className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">NOI Projection (GHS)</th>
+                                <th className="px-4 py-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Discount Target Rate (%)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {incomeData.dcfProjections.map((proj, idx) => (
+                                <tr key={idx} className="bg-slate-50 rounded-2xl">
+                                  <td className="px-4 py-4 font-black text-slate-400 bg-white border border-slate-50 rounded-l-2xl text-center">{proj.year}</td>
+                                  <td className="px-4 py-2 bg-white border border-slate-50">
+                                    <input type="number" value={proj.netOperatingIncome} onChange={(e) => onDcfChange(idx, 'netOperatingIncome', e.target.value)} className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-accent font-bold" placeholder="Net Operating Income" />
+                                  </td>
+                                  <td className="px-4 py-2 bg-white border border-slate-50 rounded-r-2xl">
+                                    <input type="number" value={proj.discountRate} onChange={(e) => onDcfChange(idx, 'discountRate', e.target.value)} className="w-full bg-slate-50 border-none rounded-xl p-3 focus:ring-2 focus:ring-accent font-bold text-center" placeholder="10" />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -461,27 +558,30 @@ const ValuationWorkspace = () => {
                       <Home className="text-amber-500 mr-2" size={20} />
                       Cost Method Inputs
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Land Value (GHS)</label>
-                        <input
-                          type="number" name="landValue" value={costData.landValue} onChange={onCostChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
-                        />
+                        <input type="number" name="landValue" value={costData.landValue} onChange={onCostChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-amber-500 transition font-bold" />
                       </div>
                       <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Const. Cost / sqm</label>
-                        <input
-                          type="number" name="constructionCostPerSqm" value={costData.constructionCostPerSqm} onChange={onCostChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
-                        />
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Direct Costs (Const)</label>
+                        <input type="number" name="directCosts" value={costData.directCosts} onChange={onCostChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-amber-500 transition font-bold" />
                       </div>
                       <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Total Depreciation</label>
-                        <input
-                          type="number" name="depreciation" value={costData.depreciation} onChange={onCostChange}
-                          className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
-                        />
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Indirect Costs</label>
+                        <input type="number" name="indirectCosts" value={costData.indirectCosts} onChange={onCostChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-amber-500 transition font-bold" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Effective Age (Yrs)</label>
+                        <input type="number" name="effectiveAge" value={costData.depreciation.effectiveAge} onChange={onCostDepreciationChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-amber-500 transition font-bold" placeholder="e.g. 5" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Total Economic Life (Yrs)</label>
+                        <input type="number" name="economicLife" value={costData.depreciation.economicLife} onChange={onCostDepreciationChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-amber-500 transition font-bold" placeholder="e.g. 50" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Functional Obs. (GHS)</label>
+                        <input type="number" name="functional" value={costData.depreciation.functional} onChange={onCostDepreciationChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-amber-500 transition font-bold text-red-500" placeholder="0" />
                       </div>
                     </div>
                   </div>
@@ -496,23 +596,27 @@ const ValuationWorkspace = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-[10px]">Gross Dev Value (GDV)</label>
-                        <input type="number" name="gdv" value={residualData.gdv} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        <input type="number" name="gdv" value={residualData.gdv} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-purple-500 transition font-bold" />
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-[10px]">Construction Costs</label>
-                        <input type="number" name="constructionCosts" value={residualData.constructionCosts} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        <input type="number" name="constructionCosts" value={residualData.constructionCosts} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-purple-500 transition font-bold" />
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-[10px]">Professional Fees</label>
-                        <input type="number" name="professionalFees" value={residualData.professionalFees} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        <input type="number" name="professionalFees" value={residualData.professionalFees} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-purple-500 transition font-bold" />
                       </div>
                       <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-[10px]">Finance Costs</label>
-                        <input type="number" name="financeCosts" value={residualData.financeCosts} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-[10px]">Finance Rate %</label>
+                        <input type="number" name="financeRate" value={residualData.financeRate} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-purple-500 transition font-bold" placeholder="e.g. 15" />
                       </div>
                       <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-[10px]">Developer Profit</label>
-                        <input type="number" name="developerProfit" value={residualData.developerProfit} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-[10px]">Proj. Duration (Months)</label>
+                        <input type="number" name="financeDurationMonths" value={residualData.financeDurationMonths} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-purple-500 transition font-bold" placeholder="e.g. 24" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1 text-[10px]">Target Profit Margin % (GDV)</label>
+                        <input type="number" name="developerProfitMargin" value={residualData.developerProfitMargin} onChange={onResidualChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-purple-500 transition font-bold" placeholder="e.g. 20" />
                       </div>
                     </div>
                   </div>
@@ -524,18 +628,34 @@ const ValuationWorkspace = () => {
                       <ShieldCheck className="text-rose-500 mr-2" size={20} />
                       Profit Method Inputs
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Gross Annual Revenue</label>
-                        <input type="number" name="grossAnnualRevenue" value={profitData.grossAnnualRevenue} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        <input type="number" name="grossAnnualRevenue" value={profitData.grossAnnualRevenue} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-rose-500 transition font-bold" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Purchases/Cost of Goods</label>
+                        <input type="number" name="purchases" value={profitData.purchases} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-rose-500 transition font-bold" />
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Operating Expenses</label>
-                        <input type="number" name="operatingExpenses" value={profitData.operatingExpenses} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        <input type="number" name="operatingExpenses" value={profitData.operatingExpenses} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-rose-500 transition font-bold" />
                       </div>
                       <div className="space-y-3">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Tenant Capital</label>
+                        <input type="number" name="tenantCapital" value={profitData.tenantCapital} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-rose-500 transition font-bold" placeholder="Inventory, Fixtures etc." />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Tenant Return Rate (%)</label>
+                        <input type="number" name="tenantReturnRate" value={profitData.tenantReturnRate} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-rose-500 transition font-bold" placeholder="e.g. 5" />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Operator Remuneration</label>
+                        <input type="number" name="operatorRemuneration" value={profitData.operatorRemuneration} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-rose-500 transition font-bold text-rose-500" placeholder="Manager Salary Deduction" />
+                      </div>
+                      <div className="space-y-3 lg:col-span-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cap Yield (%)</label>
-                        <input type="number" name="capitalizationYield" value={profitData.capitalizationYield} onChange={onProfitChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                        <input type="number" name="capitalizationYield" value={profitData.capitalizationYield} onChange={onProfitChange} className="w-full bg-slate-100 border-none rounded-2xl p-4 focus:ring-2 focus:ring-rose-500 transition font-black text-primary text-center" />
                       </div>
                     </div>
                   </div>
@@ -571,29 +691,71 @@ const ValuationWorkspace = () => {
                 <h2 className="text-2xl md:text-3xl font-bold text-primary mb-2">Select Comparables</h2>
                 <p className="text-slate-500 mb-8 md:mb-10">Select at least 3 recent transactions to base your valuation on.</p>
 
-                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 mb-10">
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 mb-10">
                   {properties.length > 0 ? (
                     properties.map((comp) => (
-                      <div
-                        key={comp._id}
-                        onClick={() => toggleComp(comp._id)}
-                        className={`flex items-center justify-between p-6 rounded-2xl border-2 transition cursor-pointer group ${selectedComps.includes(comp._id) ? 'border-accent bg-blue-50/30' : 'border-slate-50 hover:border-slate-200 hover:bg-slate-50'
-                          }`}
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition ${selectedComps.includes(comp._id) ? 'bg-accent text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-accent/10 group-hover:text-accent'
-                            }`}>
-                            <Plus size={20} />
+                      <div key={comp._id} className="border-2 rounded-3xl transition border-slate-100 overflow-hidden shadow-sm">
+                        <div
+                          onClick={() => toggleComp(comp._id)}
+                          className={`flex items-center justify-between p-6 cursor-pointer group ${selectedComps.includes(comp._id) ? 'bg-blue-50/30' : 'bg-slate-50 hover:bg-white'}`}
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition ${selectedComps.includes(comp._id) ? 'bg-accent text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-accent/10 group-hover:text-accent'}`}>
+                              <Plus size={20} />
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-primary">{comp.location?.suburb}, {comp.location?.region}</h5>
+                              <p className="text-xs text-slate-500">{comp.propertyInfo?.propertyType} • {comp.propertyInfo?.size} sqm • {comp.propertyInfo?.rooms} Rooms</p>
+                            </div>
                           </div>
-                          <div>
-                            <h5 className="font-bold text-primary">{comp.location?.suburb}, {comp.location?.region}</h5>
-                            <p className="text-xs text-slate-500">{comp.propertyInfo?.propertyType} • {comp.propertyInfo?.size} sqm • {comp.propertyInfo?.rooms} Rooms</p>
+                          <div className="text-right shrink-0">
+                            <p className="font-bold text-primary text-sm md:text-base">GHS {comp.marketData?.salePrice?.toLocaleString()}</p>
+                            <span className="text-[8px] md:text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded-md font-bold uppercase mt-1 inline-block">Verified</span>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-bold text-primary text-sm md:text-base">GHS {comp.marketData?.salePrice?.toLocaleString()}</p>
-                          <span className="text-[8px] md:text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded-md font-bold uppercase mt-1 inline-block">Verified</span>
-                        </div>
+
+                        {selectedComps.includes(comp._id) && compAdjustments[comp._id] && (
+                          <div className="p-6 bg-white border-t border-slate-100">
+                             <h6 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-4">Set Adjustments</h6>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                               {/* Transaction Adjustments */}
+                               <div>
+                                 <div className="flex justify-between items-center mb-3">
+                                   <span className="text-xs font-bold text-primary">1. Transaction Adjustments</span>
+                                   <button onClick={() => addCompAdjustment(comp._id, 'transactionAdjustments')} className="text-xs font-bold text-accent bg-blue-50 px-2 py-1 rounded-lg">+ Add</button>
+                                 </div>
+                                 <div className="space-y-2">
+                                   {compAdjustments[comp._id].transactionAdjustments.map((adj, i) => (
+                                     <div key={`tx-${i}`} className="flex space-x-2">
+                                       <input placeholder="Reason (e.g. Time)" value={adj.reason} onChange={e => updateCompAdjustment(comp._id, 'transactionAdjustments', i, 'reason', e.target.value)} className="w-1/2 p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none" />
+                                       <input type="number" placeholder="% (e.g. +5)" value={adj.percentage} onChange={e => updateCompAdjustment(comp._id, 'transactionAdjustments', i, 'percentage', e.target.value)} className="w-1/4 p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none" />
+                                       <input type="number" placeholder="Amt" value={adj.amount} onChange={e => updateCompAdjustment(comp._id, 'transactionAdjustments', i, 'amount', e.target.value)} className="w-1/4 p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none" />
+                                     </div>
+                                   ))}
+                                   {compAdjustments[comp._id].transactionAdjustments.length === 0 && <span className="text-xs text-slate-400">No transaction adjustments applied.</span>}
+                                 </div>
+                               </div>
+
+                               {/* Property Adjustments */}
+                               <div>
+                                 <div className="flex justify-between items-center mb-3">
+                                   <span className="text-xs font-bold text-primary">2. Property Adjustments</span>
+                                   <button onClick={() => addCompAdjustment(comp._id, 'propertyAdjustments')} className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">+ Add</button>
+                                 </div>
+                                 <div className="space-y-2">
+                                   {compAdjustments[comp._id].propertyAdjustments.map((adj, i) => (
+                                     <div key={`pro-${i}`} className="flex space-x-2">
+                                       <input placeholder="Reason (e.g. Condition)" value={adj.reason} onChange={e => updateCompAdjustment(comp._id, 'propertyAdjustments', i, 'reason', e.target.value)} className="w-1/2 p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none" />
+                                       <input type="number" placeholder="% (e.g. -2)" value={adj.percentage} onChange={e => updateCompAdjustment(comp._id, 'propertyAdjustments', i, 'percentage', e.target.value)} className="w-1/4 p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none" />
+                                       <input type="number" placeholder="Amt" value={adj.amount} onChange={e => updateCompAdjustment(comp._id, 'propertyAdjustments', i, 'amount', e.target.value)} className="w-1/4 p-2 border border-slate-200 rounded-lg text-xs font-bold outline-none" />
+                                     </div>
+                                   ))}
+                                   {compAdjustments[comp._id].propertyAdjustments.length === 0 && <span className="text-xs text-slate-400">No property adjustments applied.</span>}
+                                 </div>
+                               </div>
+                             </div>
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
@@ -645,22 +807,41 @@ const ValuationWorkspace = () => {
 
                     {valuationResult.method === 'Income Capitalization' && (
                       <>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Gross Rental Income</span>
-                          <span className="font-bold">GHS {valuationResult.incomeData?.annualRentalIncome?.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Vacancy (Allowance)</span>
-                          <span className="font-bold text-red-500">- {valuationResult.incomeData?.vacancyRate}%</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Operating Expenses</span>
-                          <span className="font-bold text-red-500">- GHS {valuationResult.incomeData?.operatingExpenses?.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-sm pt-2 border-t border-dashed border-slate-200">
-                          <span className="text-slate-600 font-bold">Net Operating Income</span>
-                          <span className="font-black text-emerald-600">GHS {(valuationResult.incomeData?.annualRentalIncome * (1 - valuationResult.incomeData?.vacancyRate / 100) - valuationResult.incomeData?.operatingExpenses).toLocaleString()}</span>
-                        </div>
+                        {valuationResult.incomeData?.methodology === 'DCF' ? (
+                           <>
+                             <div className="flex justify-between text-sm">
+                               <span className="text-slate-500">NPV of Cash Flows ({valuationResult.incomeData.dcfProjections?.length} Yrs)</span>
+                               <span className="font-bold">GHS {Math.round(valuationResult.incomeData.dcfProjections?.reduce((a, b) => a + (b.presentValue || 0), 0) || 0).toLocaleString()}</span>
+                             </div>
+                             <div className="flex justify-between text-sm">
+                               <span className="text-slate-500">Discounted Terminal Value (Reversion)</span>
+                               <span className="font-bold">GHS {Math.round(valuationResult.finalValue - (valuationResult.incomeData.dcfProjections?.reduce((a, b) => a + (b.presentValue || 0), 0) || 0)).toLocaleString()}</span>
+                             </div>
+                             <div className="flex justify-between text-sm pt-2 border-t border-dashed border-slate-200">
+                               <span className="text-slate-600 font-bold">Total Present Value (DCF)</span>
+                               <span className="font-black text-emerald-600">GHS {valuationResult.finalValue?.toLocaleString()}</span>
+                             </div>
+                           </>
+                        ) : (
+                           <>
+                             <div className="flex justify-between text-sm">
+                               <span className="text-slate-500">Gross Rental Income</span>
+                               <span className="font-bold">GHS {valuationResult.incomeData?.annualRentalIncome?.toLocaleString()}</span>
+                             </div>
+                             <div className="flex justify-between text-sm">
+                               <span className="text-slate-500">Vacancy (Allowance)</span>
+                               <span className="font-bold text-red-500">- {valuationResult.incomeData?.vacancyRate}%</span>
+                             </div>
+                             <div className="flex justify-between text-sm">
+                               <span className="text-slate-500">Operating Expenses</span>
+                               <span className="font-bold text-red-500">- GHS {valuationResult.incomeData?.operatingExpenses?.toLocaleString()}</span>
+                             </div>
+                             <div className="flex justify-between text-sm pt-2 border-t border-dashed border-slate-200">
+                               <span className="text-slate-600 font-bold">Net Operating Income</span>
+                               <span className="font-black text-emerald-600">GHS {((valuationResult.incomeData?.annualRentalIncome * (1 - valuationResult.incomeData?.vacancyRate / 100)) - valuationResult.incomeData?.operatingExpenses).toLocaleString()}</span>
+                             </div>
+                           </>
+                        )}
                       </>
                     )}
 
@@ -671,12 +852,16 @@ const ValuationWorkspace = () => {
                           <span className="font-bold">GHS {valuationResult.costData?.landValue?.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Replacement Cost (@ {valuationResult.costData?.constructionCostPerSqm}/sqm)</span>
-                          <span className="font-bold">GHS {(valuationResult.costData?.constructionCostPerSqm * valuationResult.subjectProperty?.size)?.toLocaleString()}</span>
+                          <span className="text-slate-500">Total Construction Costs</span>
+                          <span className="font-bold">GHS {(Number(valuationResult.costData?.directCosts) + Number(valuationResult.costData?.indirectCosts) || 0).toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Accrued Depreciation</span>
-                          <span className="font-bold text-red-500">- GHS {valuationResult.costData?.depreciation?.toLocaleString()}</span>
+                        <div className="flex justify-between text-sm text-red-500 pl-4 border-l-2 border-red-200 mt-2">
+                          <span className="text-slate-500 text-xs">Physical Depreciation</span>
+                          <span className="font-bold text-xs">- GHS {Math.round(valuationResult.costData?.depreciation?.physical || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-red-500 pl-4 border-l-2 border-red-200">
+                          <span className="text-slate-500 text-xs">Functional/External Obsolescence</span>
+                          <span className="font-bold text-xs">- GHS {(Number(valuationResult.costData?.depreciation?.functional || 0) + Number(valuationResult.costData?.depreciation?.external || 0)).toLocaleString()}</span>
                         </div>
                       </>
                     )}
@@ -687,9 +872,17 @@ const ValuationWorkspace = () => {
                           <span className="text-slate-500">Gross Development Value (GDV)</span>
                           <span className="font-black text-primary">GHS {valuationResult.residualData?.gdv?.toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Total Development Costs</span>
-                          <span className="font-bold text-red-500">- GHS {(Number(valuationResult.residualData?.constructionCosts) + Number(valuationResult.residualData?.professionalFees) + Number(valuationResult.residualData?.financeCosts) + Number(valuationResult.residualData?.developerProfit)).toLocaleString()}</span>
+                        <div className="flex justify-between text-sm pl-4 border-l-2 border-red-200 mt-2">
+                          <span className="text-slate-500 text-xs">Total Hard/Soft Costs</span>
+                          <span className="font-bold text-xs text-red-500">- GHS {(Number(valuationResult.residualData?.constructionCosts || 0) + Number(valuationResult.residualData?.professionalFees || 0)).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm pl-4 border-l-2 border-red-200">
+                          <span className="text-slate-500 text-xs">Finance Costs ({valuationResult.residualData?.financeDurationMonths} mo @ {valuationResult.residualData?.financeRate}%)</span>
+                          <span className="font-bold text-xs text-red-500">- GHS {Math.round(valuationResult.residualData?.financeCosts || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm pl-4 border-l-2 border-red-200">
+                          <span className="text-slate-500 text-xs">Target Developer Profit ({valuationResult.residualData?.developerProfitMargin}% margin)</span>
+                          <span className="font-bold text-xs text-red-500">- GHS {Math.round(valuationResult.residualData?.developerProfit || 0).toLocaleString()}</span>
                         </div>
                       </>
                     )}
@@ -698,11 +891,23 @@ const ValuationWorkspace = () => {
                       <>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-500">Business Net Profit</span>
-                          <span className="font-black text-emerald-600">GHS {(valuationResult.profitData?.grossAnnualRevenue - valuationResult.profitData?.operatingExpenses).toLocaleString()}</span>
+                          <span className="font-bold text-emerald-600">GHS {(valuationResult.profitData?.grossAnnualRevenue - valuationResult.profitData?.purchases - valuationResult.profitData?.operatingExpenses).toLocaleString()}</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Capitalization Yield</span>
-                          <span className="font-bold">{valuationResult.profitData?.capitalizationYield}%</span>
+                        <div className="flex justify-between text-sm pl-4 border-l-2 border-red-200 mt-2">
+                          <span className="text-slate-500 text-xs">Interest on Tenant Capital ({valuationResult.profitData?.tenantReturnRate}%)</span>
+                          <span className="font-bold text-xs text-red-500">- GHS {Math.round(valuationResult.profitData?.tenantCapital * (valuationResult.profitData?.tenantReturnRate/100) || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm pl-4 border-l-2 border-red-200">
+                          <span className="text-slate-500 text-xs">Operator Remuneration Allowance</span>
+                          <span className="font-bold text-xs text-red-500">- GHS {Math.round(valuationResult.profitData?.operatorRemuneration || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm pt-2 border-t border-slate-100">
+                          <span className="text-slate-600 font-bold">Divisible Balance</span>
+                          <span className="font-black text-primary">GHS {Math.max(0, (valuationResult.profitData?.grossAnnualRevenue - valuationResult.profitData?.purchases - valuationResult.profitData?.operatingExpenses) - (valuationResult.profitData?.tenantCapital * (valuationResult.profitData?.tenantReturnRate/100)) - valuationResult.profitData?.operatorRemuneration).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm mt-4">
+                          <span className="text-slate-500">Capitalization Yield (Years Purchase)</span>
+                          <span className="font-bold">{valuationResult.profitData?.capitalizationYield}% ({(100 / valuationResult.profitData?.capitalizationYield).toFixed(2)} YP)</span>
                         </div>
                       </>
                     )}
@@ -726,47 +931,6 @@ const ValuationWorkspace = () => {
               </div>
             )}
 
-            {step === 5 && valuationResult && (
-              <div className="p-6 md:p-12 animate-in zoom-in-95 duration-500">
-                <div className="flex items-center justify-center mb-8 md:mb-10">
-                  <div className="w-20 h-20 md:w-24 md:h-24 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center border-4 border-emerald-100 shadow-xl">
-                    <ShieldCheck size={40} className="md:w-12 md:h-12" />
-                  </div>
-                </div>
-                <h2 className="text-3xl md:text-4xl font-black text-primary mb-2 text-center">Valuation Finalized</h2>
-                <p className="text-slate-500 text-center mb-8 md:mb-12 text-sm md:text-base">Your professional valuation report is ready for download.</p>
-
-                <div className="bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 text-white mb-8 md:mb-10 relative overflow-hidden">
-                  <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center text-center md:text-left">
-                    <div>
-                      <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px] md:text-xs mb-2">Total Estimated Value</p>
-                      <h3 className="text-4xl md:text-5xl font-black text-accent">GHS {valuationResult.finalValue?.toLocaleString()}</h3>
-                      <p className="text-slate-400 mt-4 text-sm leading-relaxed">
-                        Report ID: <span className="text-white font-mono">{valuationResult._id}</span><br />
-                        Generated on {new Date().toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex justify-center">
-                      <button
-                        onClick={downloadReport}
-                        className="w-full flex items-center justify-center space-x-3 p-6 bg-accent text-white rounded-3xl font-black shadow-xl shadow-blue-500/20 hover:scale-[1.05] transition active:scale-95"
-                      >
-                        <Download size={24} />
-                        <span>Download PDF Report</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-center border-t border-slate-100 pt-8 mt-8">
-                  <button onClick={() => {
-                    setStep(1);
-                    setSelectedComps([]);
-                    setValuationResult(null);
-                  }} className="text-slate-500 font-bold hover:text-primary transition">New Valuation Project</button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </main>

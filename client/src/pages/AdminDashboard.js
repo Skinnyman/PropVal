@@ -63,6 +63,8 @@ const AdminDashboard = () => {
   const [propStatusFilter, setPropStatusFilter] = useState('All');
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState('All');
   const [analytics, setAnalytics] = useState({ users: 0, properties: 0, valuations: 0, pendingProperties: 0 });
   const [selectedModerationProperty, setSelectedModerationProperty] = useState(null);
   const [allValuations, setAllValuations] = useState([]);
@@ -223,8 +225,8 @@ const AdminDashboard = () => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'valuations') fetchAllValuations();
     if (activeTab === 'database') {
-       fetchAllProperties();
-       fetchMarketData();
+      fetchAllProperties();
+      fetchMarketData();
     }
   }, [activeTab]);
 
@@ -264,6 +266,13 @@ const AdminDashboard = () => {
     const q = propSearch.toLowerCase();
     const matchSearch = !q || [p.location?.suburb, p.propertyInfo?.propertyType, p.uploadedBy?.name].some(v => v?.toLowerCase().includes(q));
     return matchStatus && matchSearch;
+  });
+
+  const filteredUsers = users.filter(u => {
+    const matchRole = userRoleFilter === 'All' || u.role === userRoleFilter || (userRoleFilter === 'Pending' && u.accountStatus === 'Pending');
+    const q = userSearch.toLowerCase();
+    const matchSearch = !q || [u.name, u.email, u.company].some(v => v?.toLowerCase().includes(q));
+    return matchRole && matchSearch;
   });
 
   const exportToCSV = () => {
@@ -327,7 +336,7 @@ const AdminDashboard = () => {
 
     try {
       const formDataToSend = new FormData();
-      
+
       // Structure the data as expected by the backend standardizer
       const locationData = {
         region: formData.region,
@@ -365,7 +374,7 @@ const AdminDashboard = () => {
       await api.post('/properties', formDataToSend, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
+
       setStatus({ type: 'success', message: 'Property record added and approved successfully!' });
       // Reset form
       setFormData({
@@ -799,7 +808,7 @@ const AdminDashboard = () => {
                       {imagePreviews.map((preview, index) => (
                         <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
                           <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-                          <button 
+                          <button
                             type="button"
                             onClick={() => removeImage(index)}
                             className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg"
@@ -835,69 +844,129 @@ const AdminDashboard = () => {
               </form>
             </div>
           ) : activeTab === 'users' ? (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-primary flex items-center">
-                  <Users size={20} className="mr-2 text-accent" />
-                  User Management ({users.length})
-                </h2>
-                <button onClick={fetchUsers} className="text-xs font-black text-accent uppercase tracking-widest hover:underline">Refresh List</button>
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+              <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center gap-4">
+                <div className="flex items-center space-x-3 flex-1">
+                  <Users size={20} className="text-slate-400 shrink-0" />
+                  <h2 className="text-lg font-black text-primary">User Management</h2>
+                  <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-full">{filteredUsers.length} total</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={userSearch}
+                      onChange={e => setUserSearch(e.target.value)}
+                      placeholder="Search name, email..."
+                      className="pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-accent outline-none w-48"
+                    />
+                  </div>
+                  <select
+                    value={userRoleFilter}
+                    onChange={e => setUserRoleFilter(e.target.value)}
+                    className="px-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-accent font-bold cursor-pointer"
+                  >
+                    <option value="All">All Users</option>
+                    <option value="Valuer">Valuers</option>
+                    <option value="Admin">Admins</option>
+                    <option value="Pending">Pending Approval</option>
+                  </select>
+                  <button onClick={fetchUsers} className="text-xs font-black text-accent hover:underline uppercase tracking-widest px-2">Refresh</button>
+                </div>
               </div>
 
               {loadingUsers ? (
                 <div className="flex justify-center py-20">
                   <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
                 </div>
-              ) : users.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <div className="bg-white rounded-[2.5rem] p-20 text-center border-2 border-dashed border-slate-200">
-                  <p className="text-slate-400 font-bold">No users found.</p>
+                  <p className="text-slate-400 font-bold">{userSearch || userRoleFilter !== 'All' ? 'No users match your filter.' : 'No users found.'}</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
-                  {users.map((u) => (
-                    <div key={u._id} className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
-                          <User size={24} />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-primary">{u.name}</h3>
-                          <p className="text-sm text-slate-500">{u.email} • {u.company || 'Independent'}</p>
-                          <div className="mt-2 flex space-x-2">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${u.accountStatus === 'Approved' ? 'bg-emerald-50 text-emerald-600' :
-                                u.accountStatus === 'Pending' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
-                              }`}>
-                              {u.accountStatus}
-                            </span>
-                            <span className="text-[10px] bg-blue-50 text-accent px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                              {u.role}
-                            </span>
+                  {filteredUsers.map((u) => {
+                    const isOnline = u.lastActive && new Date() - new Date(u.lastActive) < 15 * 60 * 1000;
+                    const timeHours = Math.floor((u.totalSessionTime || 0) / 60);
+                    const timeMins = (u.totalSessionTime || 0) % 60;
+
+                    return (
+                      <div key={u._id} className="bg-white rounded-[1.5rem] p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition relative overflow-hidden">
+                        <div className="flex items-center space-x-4">
+                          <div className="relative">
+                            <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-inner">
+                              <User size={24} />
+                            </div>
+                            {isOnline && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full animate-pulse z-10" title="Online now"></div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2 mb-1">
+                              <h3 className="text-lg font-black text-primary">{u.name}</h3>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${u.accountStatus === 'Approved' ? 'bg-emerald-100 text-emerald-700' :
+                                u.accountStatus === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                                }`}>
+                                {u.accountStatus}
+                              </span>
+                              <span className="text-[9px] bg-blue-50 text-accent px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                {u.role}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 font-medium mb-2">{u.email} • {u.company || 'Independent'}</p>
+
+                            {/* Metrics Bar */}
+                            <div className="flex flex-wrap items-center gap-3">
+                              <div className="px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 py-0.5 tracking-widest uppercase">Last Seen</p>
+                                <p className="text-[10px] font-bold text-slate-700 flex items-center">
+                                  <Clock size={10} className="mr-1 shadow-sm" />
+                                  {isOnline ? <span className="text-emerald-500">Online Now</span> : (u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never logged in')}
+                                </p>
+                              </div>
+                              <div className="px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                                <p className="text-[9px] font-black text-slate-400 py-0.5 tracking-widest uppercase">Session Time</p>
+                                <p className="text-[10px] font-bold text-slate-700 flex items-center">
+                                  <Activity size={10} className="mr-1 shadow-sm" />
+                                  {timeHours > 0 ? `${timeHours}h ` : ''}{timeMins}m
+                                </p>
+                              </div>
+                              {u.contributionCounts && (
+                                <div className="px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                                  <p className="text-[9px] font-black text-slate-400 py-0.5 tracking-widest uppercase">Contributions</p>
+                                  <p className="text-[10px] font-bold text-slate-700 flex items-center">
+                                    <Database size={10} className="mr-1 shadow-sm text-accent" />
+                                    <span className="text-accent">{u.contributionCounts.properties}</span> Properties • <span className="text-accent">{u.contributionCounts.marketData}</span> Mkt Data
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {u.role !== 'Admin' && (
-                        <div className="flex space-x-2 shrink-0">
-                          {u.accountStatus !== 'Approved' && (
-                            <button
-                              onClick={() => handleUserStatus(u._id, 'Approved')}
-                              className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-xs hover:bg-emerald-600 transition shadow-sm"
-                            >
-                              Approve
-                            </button>
-                          )}
-                          {u.accountStatus !== 'Rejected' && (
-                            <button
-                              onClick={() => handleUserStatus(u._id, 'Rejected')}
-                              className="px-4 py-2 bg-white border border-slate-200 text-red-500 rounded-xl font-black text-xs hover:bg-red transition"
-                            >
-                              Reject
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        {u.role !== 'Admin' && (
+                          <div className="flex space-x-2 shrink-0">
+                            {u.accountStatus !== 'Approved' && (
+                              <button
+                                onClick={() => handleUserStatus(u._id, 'Approved')}
+                                className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-black text-xs hover:bg-emerald-600 transition shadow-sm"
+                              >
+                                Approve
+                              </button>
+                            )}
+                            {u.accountStatus !== 'Rejected' && (
+                              <button
+                                onClick={() => handleUserStatus(u._id, 'Rejected')}
+                                className="px-4 py-2 bg-white border border-slate-200 text-red-500 rounded-xl font-black text-xs hover:bg-red-50 transition"
+                              >
+                                Reject
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -962,128 +1031,128 @@ const AdminDashboard = () => {
               </div>
 
               {dbSubTab === 'properties' ? (
-                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-                   {/* Properties Toolbar */}
-                   <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center gap-4">
-                     <div className="flex items-center space-x-3 flex-1">
-                       <Home size={20} className="text-slate-400 shrink-0" />
-                       <h2 className="text-lg font-black text-primary">Property Asset Index</h2>
-                       <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-full">{filteredProperties.length} records</span>
-                     </div>
-                     <div className="flex flex-wrap items-center gap-3">
-                       <div className="relative">
-                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                         <input
-                           value={propSearch}
-                           onChange={e => setPropSearch(e.target.value)}
-                           placeholder="Search properties..."
-                           className="pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-accent outline-none w-48"
-                         />
-                       </div>
-                       <select
-                         value={propStatusFilter}
-                         onChange={e => setPropStatusFilter(e.target.value)}
-                         className="px-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-accent font-bold cursor-pointer"
-                       >
-                         <option value="All">All Statuses</option>
-                         <option value="Pending">Pending</option>
-                         <option value="Approved">Approved</option>
-                         <option value="Rejected">Rejected</option>
-                       </select>
-                       <button onClick={fetchAllProperties} className="text-xs font-black text-accent hover:underline uppercase tracking-widest px-2">Refresh</button>
-                     </div>
-                   </div>
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+                  {/* Properties Toolbar */}
+                  <div className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center gap-4">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <Home size={20} className="text-slate-400 shrink-0" />
+                      <h2 className="text-lg font-black text-primary">Property Asset Index</h2>
+                      <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-full">{filteredProperties.length} records</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          value={propSearch}
+                          onChange={e => setPropSearch(e.target.value)}
+                          placeholder="Search properties..."
+                          className="pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-accent outline-none w-48"
+                        />
+                      </div>
+                      <select
+                        value={propStatusFilter}
+                        onChange={e => setPropStatusFilter(e.target.value)}
+                        className="px-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-accent font-bold cursor-pointer"
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                      </select>
+                      <button onClick={fetchAllProperties} className="text-xs font-black text-accent hover:underline uppercase tracking-widest px-2">Refresh</button>
+                    </div>
+                  </div>
 
-                   {loadingProperties ? (
-                     <div className="flex justify-center py-20">
-                       <div className="w-full space-y-4">
-                         {[1,2,3].map(i => (
-                           <div key={i} className="bg-white rounded-[2rem] p-8 border border-slate-100 flex gap-6 animate-pulse">
-                             <div className="w-16 h-16 bg-slate-200 rounded-2xl shrink-0"></div>
-                             <div className="flex-1 space-y-3">
-                               <div className="h-4 bg-slate-200 rounded-full w-1/4"></div>
-                               <div className="h-3 bg-slate-100 rounded-full w-1/3"></div>
-                             </div>
-                           </div>
-                         ))}
-                       </div>
-                     </div>
-                   ) : filteredProperties.length === 0 ? (
-                     <div className="bg-white rounded-[2.5rem] p-20 text-center border-2 border-dashed border-slate-200">
-                       <p className="text-slate-400 font-bold">{propSearch || propStatusFilter !== 'All' ? 'No results match your filter.' : 'No property records found.'}</p>
-                     </div>
-                   ) : (
-                     <div className="grid grid-cols-1 gap-4">
-                       {filteredProperties.map((prop) => (
-                         <div key={prop._id} className={`bg-white rounded-[2rem] p-6 shadow-sm border ${prop.verificationStatus === 'Pending' ? 'border-amber-200 bg-amber-50/30' : 'border-slate-100'} flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-xl transition`}>
-                           <div className="flex items-start space-x-4 min-w-0 flex-1">
-                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${prop.verificationStatus === 'Approved' ? 'bg-emerald-50 text-emerald-500' : prop.verificationStatus === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-red-50 text-red-500'}`}>
-                               <Home size={24} />
-                             </div>
-                             <div className="min-w-0">
-                               <div className="flex items-center space-x-2 mb-1">
-                                 <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${prop.verificationStatus === 'Approved' ? 'bg-emerald-100 text-emerald-700' : prop.verificationStatus === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-                                   {prop.verificationStatus}
-                                 </span>
-                                 <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                                   {prop.propertyInfo.propertyType}
-                                 </span>
-                               </div>
-                               <h3 className="text-lg font-black text-primary truncate">{prop.location.suburb}, {prop.location.district}</h3>
-                               <p className="text-slate-400 font-medium text-xs flex items-center mt-1">
-                                 <User size={12} className="mr-1" /> {prop.uploadedBy?.name || 'Authorized Valuer'}
-                               </p>
-                               <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] font-bold text-slate-500">
-                                 <div className="flex items-center bg-slate-50 px-2 py-1 rounded-lg"><MapPin size={12} className="mr-1" /> {prop.location.region}</div>
-                                 <div className="flex items-center bg-slate-50 px-2 py-1 rounded-lg"><Maximize size={12} className="mr-1" /> {prop.propertyInfo?.size} sqm</div>
-                                 {(prop.marketData?.salePrice || prop.marketData?.rentalValue) && (
-                                   <div className="flex items-center bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg">
-                                     <DollarSign size={12} className="mr-1" /> 
-                                     GHS {prop.marketData.salePrice ? prop.marketData.salePrice.toLocaleString() : `${prop.marketData.rentalValue.toLocaleString()}/yr`}
-                                   </div>
-                                 )}
-                               </div>
-                             </div>
-                           </div>
+                  {loadingProperties ? (
+                    <div className="flex justify-center py-20">
+                      <div className="w-full space-y-4">
+                        {[1, 2, 3].map(i => (
+                          <div key={i} className="bg-white rounded-[2rem] p-8 border border-slate-100 flex gap-6 animate-pulse">
+                            <div className="w-16 h-16 bg-slate-200 rounded-2xl shrink-0"></div>
+                            <div className="flex-1 space-y-3">
+                              <div className="h-4 bg-slate-200 rounded-full w-1/4"></div>
+                              <div className="h-3 bg-slate-100 rounded-full w-1/3"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : filteredProperties.length === 0 ? (
+                    <div className="bg-white rounded-[2.5rem] p-20 text-center border-2 border-dashed border-slate-200">
+                      <p className="text-slate-400 font-bold">{propSearch || propStatusFilter !== 'All' ? 'No results match your filter.' : 'No property records found.'}</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                      {filteredProperties.map((prop) => (
+                        <div key={prop._id} className={`bg-white rounded-[2rem] p-6 shadow-sm border ${prop.verificationStatus === 'Pending' ? 'border-amber-200 bg-amber-50/30' : 'border-slate-100'} flex flex-col lg:flex-row lg:items-center justify-between gap-6 hover:shadow-xl transition`}>
+                          <div className="flex items-start space-x-4 min-w-0 flex-1">
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${prop.verificationStatus === 'Approved' ? 'bg-emerald-50 text-emerald-500' : prop.verificationStatus === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-red-50 text-red-500'}`}>
+                              <Home size={24} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${prop.verificationStatus === 'Approved' ? 'bg-emerald-100 text-emerald-700' : prop.verificationStatus === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                                  {prop.verificationStatus}
+                                </span>
+                                <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                                  {prop.propertyInfo.propertyType}
+                                </span>
+                              </div>
+                              <h3 className="text-lg font-black text-primary truncate">{prop.location.suburb}, {prop.location.district}</h3>
+                              <p className="text-slate-400 font-medium text-xs flex items-center mt-1">
+                                <User size={12} className="mr-1" /> {prop.uploadedBy?.name || 'Authorized Valuer'}
+                              </p>
+                              <div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] font-bold text-slate-500">
+                                <div className="flex items-center bg-slate-50 px-2 py-1 rounded-lg"><MapPin size={12} className="mr-1" /> {prop.location.region}</div>
+                                <div className="flex items-center bg-slate-50 px-2 py-1 rounded-lg"><Maximize size={12} className="mr-1" /> {prop.propertyInfo?.size} sqm</div>
+                                {(prop.marketData?.salePrice || prop.marketData?.rentalValue) && (
+                                  <div className="flex items-center bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg">
+                                    <DollarSign size={12} className="mr-1" />
+                                    GHS {prop.marketData.salePrice ? prop.marketData.salePrice.toLocaleString() : `${prop.marketData.rentalValue.toLocaleString()}/yr`}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
 
-                           <div className="flex flex-col space-y-2 shrink-0 min-w-[200px]">
-                             {prop.verificationStatus === 'Pending' ? (
-                               <div className="flex space-x-2">
-                                 <button
-                                   onClick={() => handleModerate(prop._id, 'Approved')}
-                                   className="flex-1 bg-emerald-500 text-white px-3 py-2.5 rounded-xl font-black text-xs flex items-center justify-center hover:bg-emerald-600 transition shadow-lg shadow-emerald-500/20"
-                                 >
-                                   <Check size={14} className="mr-1" /> Approve
-                                 </button>
-                                 <button
-                                   onClick={() => handleModerate(prop._id, 'Rejected')}
-                                   className="flex-1 bg-white border border-slate-200 text-red-500 px-3 py-2.5 rounded-xl font-black text-xs flex items-center justify-center hover:bg-red-50 transition"
-                                 >
-                                   <X size={14} className="mr-1" /> Reject
-                                 </button>
-                               </div>
-                             ) : (
-                               <div className="flex space-x-2">
-                                 <button
-                                   onClick={() => handleModerate(prop._id, prop.verificationStatus === 'Approved' ? 'Rejected' : 'Approved')}
-                                   className="flex-1 bg-slate-100 text-slate-600 px-3 py-2.5 rounded-xl font-black text-xs flex items-center justify-center hover:bg-slate-200 transition"
-                                 >
-                                   Switch to {prop.verificationStatus === 'Approved' ? 'Rejected' : 'Approved'}
-                                 </button>
-                               </div>
-                             )}
-                             <button
-                               onClick={() => setSelectedModerationProperty(prop)}
-                               className="w-full bg-blue-50 text-accent px-3 py-2.5 rounded-xl font-black text-xs flex items-center justify-center hover:bg-blue-100 transition"
-                             >
-                               <Search size={14} className="mr-1" /> View Full Details
-                             </button>
-                           </div>
-                         </div>
-                       ))}
-                     </div>
-                   )}
-                 </div>
+                          <div className="flex flex-col space-y-2 shrink-0 min-w-[200px]">
+                            {prop.verificationStatus === 'Pending' ? (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleModerate(prop._id, 'Approved')}
+                                  className="flex-1 bg-emerald-500 text-white px-3 py-2.5 rounded-xl font-black text-xs flex items-center justify-center hover:bg-emerald-600 transition shadow-lg shadow-emerald-500/20"
+                                >
+                                  <Check size={14} className="mr-1" /> Approve
+                                </button>
+                                <button
+                                  onClick={() => handleModerate(prop._id, 'Rejected')}
+                                  className="flex-1 bg-white border border-slate-200 text-red-500 px-3 py-2.5 rounded-xl font-black text-xs flex items-center justify-center hover:bg-red-50 transition"
+                                >
+                                  <X size={14} className="mr-1" /> Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleModerate(prop._id, prop.verificationStatus === 'Approved' ? 'Rejected' : 'Approved')}
+                                  className="flex-1 bg-slate-100 text-slate-600 px-3 py-2.5 rounded-xl font-black text-xs flex items-center justify-center hover:bg-slate-200 transition"
+                                >
+                                  Switch to {prop.verificationStatus === 'Approved' ? 'Rejected' : 'Approved'}
+                                </button>
+                              </div>
+                            )}
+                            <button
+                              onClick={() => setSelectedModerationProperty(prop)}
+                              className="w-full bg-blue-50 text-accent px-3 py-2.5 rounded-xl font-black text-xs flex items-center justify-center hover:bg-blue-100 transition"
+                            >
+                              <Search size={14} className="mr-1" /> View Full Details
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
                   {/* Database Toolbar */}
@@ -1093,110 +1162,110 @@ const AdminDashboard = () => {
                       <h2 className="text-lg font-black text-primary">Market Evidence Bank</h2>
                       <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-full">{filteredDataBank.length} records</span>
                     </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={dbSearch}
-                      onChange={e => setDbSearch(e.target.value)}
-                      placeholder="Search city, uploader..."
-                      className="pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-accent outline-none w-48"
-                    />
-                  </div>
-                  {/* Category Filter */}
-                  <select
-                    value={dbCategoryFilter}
-                    onChange={e => setDbCategoryFilter(e.target.value)}
-                    className="px-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-accent font-bold cursor-pointer"
-                  >
-                    {DB_CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                  {/* Export */}
-                  <button
-                    onClick={exportToCSV}
-                    className="flex items-center space-x-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-black transition"
-                  >
-                    <Download size={14} />
-                    <span>Export CSV</span>
-                  </button>
-                  <button onClick={fetchMarketData} className="text-xs font-black text-accent hover:underline uppercase tracking-widest">Refresh</button>
-                </div>
-              </div>
-              {loadingMarketData ? (
-                <div className="flex justify-center py-20">
-                  {/* Skeleton Loader */}
-                  <div className="w-full space-y-3">
-                    {[1,2,3,4,5].map(i => (
-                      <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 flex items-center space-x-4 animate-pulse">
-                        <div className="w-10 h-10 bg-slate-200 rounded-xl shrink-0"></div>
-                        <div className="flex-1 space-y-2">
-                          <div className="h-3 bg-slate-200 rounded-full w-1/3"></div>
-                          <div className="h-2 bg-slate-100 rounded-full w-1/2"></div>
-                        </div>
-                        <div className="h-8 w-20 bg-slate-100 rounded-xl"></div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {/* Search */}
+                      <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          value={dbSearch}
+                          onChange={e => setDbSearch(e.target.value)}
+                          placeholder="Search city, uploader..."
+                          className="pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-accent outline-none w-48"
+                        />
                       </div>
-                    ))}
+                      {/* Category Filter */}
+                      <select
+                        value={dbCategoryFilter}
+                        onChange={e => setDbCategoryFilter(e.target.value)}
+                        className="px-4 py-2 text-xs bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-accent font-bold cursor-pointer"
+                      >
+                        {DB_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                      {/* Export */}
+                      <button
+                        onClick={exportToCSV}
+                        className="flex items-center space-x-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-black hover:bg-black transition"
+                      >
+                        <Download size={14} />
+                        <span>Export CSV</span>
+                      </button>
+                      <button onClick={fetchMarketData} className="text-xs font-black text-accent hover:underline uppercase tracking-widest">Refresh</button>
+                    </div>
                   </div>
-                </div>
-              ) : filteredDataBank.length === 0 ? (
-                <div className="bg-white rounded-[2.5rem] p-20 text-center border-2 border-dashed border-slate-200">
-                  <p className="text-slate-400 font-bold">{dbSearch || dbCategoryFilter !== 'All' ? 'No results match your filter.' : 'No market data records found.'}</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredDataBank.map((item) => (
-                    <div key={item._id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-md transition">
-                      <div className="flex items-center space-x-4 min-w-0">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.isVerified ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>
-                          {item.isVerified ? <Check size={20} /> : <Clock size={20} />}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">{item.category}</span>
-                            {!item.isVerified && <span className="text-[9px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pending Approval</span>}
+                  {loadingMarketData ? (
+                    <div className="flex justify-center py-20">
+                      {/* Skeleton Loader */}
+                      <div className="w-full space-y-3">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 flex items-center space-x-4 animate-pulse">
+                            <div className="w-10 h-10 bg-slate-200 rounded-xl shrink-0"></div>
+                            <div className="flex-1 space-y-2">
+                              <div className="h-3 bg-slate-200 rounded-full w-1/3"></div>
+                              <div className="h-2 bg-slate-100 rounded-full w-1/2"></div>
+                            </div>
+                            <div className="h-8 w-20 bg-slate-100 rounded-xl"></div>
                           </div>
-                          <h4 className="font-bold text-primary truncate lowercase first-letter:uppercase">
-                            {item.title || item.propertyType || item.materialName || 'Untitled Entry'} 
-                            <span className="text-slate-400 font-normal ml-2">in {item.city || item.location || 'Unknown Location'}</span>
-                          </h4>
-                          <p className="text-xs text-slate-500 flex items-center">
-                            <User size={12} className="mr-1" /> 
-                            Uploaded by: <span className="font-bold text-slate-700 ml-1">{item.uploadedBy?.name || 'Authorized Valuer'}</span>
-                            <span className="ml-2 text-[10px] opacity-60">• {new Date(item.updatedAt).toLocaleDateString()}</span>
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2 shrink-0">
-                        {!item.isVerified && (
-                          <button
-                            onClick={() => handleVerifyMarketData(item._id)}
-                            className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition shadow-sm"
-                            title="Approve Submission"
-                          >
-                            <Check size={16} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleEditMarketData(item)}
-                          className="p-2 bg-blue-50 text-accent rounded-lg hover:bg-blue-100 transition"
-                          title="Edit Record"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMarketData(item._id)}
-                          className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition"
-                          title="Delete Record"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ) : filteredDataBank.length === 0 ? (
+                    <div className="bg-white rounded-[2.5rem] p-20 text-center border-2 border-dashed border-slate-200">
+                      <p className="text-slate-400 font-bold">{dbSearch || dbCategoryFilter !== 'All' ? 'No results match your filter.' : 'No market data records found.'}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {filteredDataBank.map((item) => (
+                        <div key={item._id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-md transition">
+                          <div className="flex items-center space-x-4 min-w-0">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.isVerified ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>
+                              {item.isVerified ? <Check size={20} /> : <Clock size={20} />}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">{item.category}</span>
+                                {!item.isVerified && <span className="text-[9px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pending Approval</span>}
+                              </div>
+                              <h4 className="font-bold text-primary truncate lowercase first-letter:uppercase">
+                                {item.title || item.propertyType || item.materialName || 'Untitled Entry'}
+                                <span className="text-slate-400 font-normal ml-2">in {item.city || item.location || 'Unknown Location'}</span>
+                              </h4>
+                              <p className="text-xs text-slate-500 flex items-center">
+                                <User size={12} className="mr-1" />
+                                Uploaded by: <span className="font-bold text-slate-700 ml-1">{item.uploadedBy?.name || 'Authorized Valuer'}</span>
+                                <span className="ml-2 text-[10px] opacity-60">• {new Date(item.updatedAt).toLocaleDateString()}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2 shrink-0">
+                            {!item.isVerified && (
+                              <button
+                                onClick={() => handleVerifyMarketData(item._id)}
+                                className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition shadow-sm"
+                                title="Approve Submission"
+                              >
+                                <Check size={16} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleEditMarketData(item)}
+                              className="p-2 bg-blue-50 text-accent rounded-lg hover:bg-blue-100 transition"
+                              title="Edit Record"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMarketData(item._id)}
+                              className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition"
+                              title="Delete Record"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1209,104 +1278,104 @@ const AdminDashboard = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
             <header className="p-8 border-b flex items-center justify-between shrink-0">
-               <div className="flex items-center space-x-4">
-                  <div className="w-14 h-14 bg-blue-50 text-accent rounded-2xl flex items-center justify-center">
-                    <Home size={24} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Verify Property Submission</p>
-                    <h2 className="text-xl font-black text-primary">{selectedModerationProperty.location.suburb}</h2>
-                  </div>
-               </div>
-               <button onClick={() => setSelectedModerationProperty(null)} className="p-3 bg-slate-50 text-slate-400 hover:text-primary rounded-xl transition">
-                 <X size={24} />
-               </button>
+              <div className="flex items-center space-x-4">
+                <div className="w-14 h-14 bg-blue-50 text-accent rounded-2xl flex items-center justify-center">
+                  <Home size={24} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Verify Property Submission</p>
+                  <h2 className="text-xl font-black text-primary">{selectedModerationProperty.location.suburb}</h2>
+                </div>
+              </div>
+              <button onClick={() => setSelectedModerationProperty(null)} className="p-3 bg-slate-50 text-slate-400 hover:text-primary rounded-xl transition">
+                <X size={24} />
+              </button>
             </header>
 
             <div className="flex-1 overflow-y-auto p-10 space-y-12">
-               {/* Image Gallery Preview */}
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 {selectedModerationProperty.propertyInfo?.images?.map((img, i) => (
-                   <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
-                     <img src={img.startsWith('http') ? img : `http://localhost:5000${img}`} className="w-full h-full object-cover" alt="Property" />
-                   </div>
-                 )) || (
-                   <div className="col-span-full py-10 text-center bg-slate-50 rounded-2xl text-slate-400 font-bold uppercase text-[10px] tracking-widest">No images provided</div>
-                 )}
-               </div>
+              {/* Image Gallery Preview */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {selectedModerationProperty.propertyInfo?.images?.map((img, i) => (
+                  <div key={i} className="aspect-square rounded-2xl overflow-hidden border border-slate-100 shadow-sm">
+                    <img src={img.startsWith('http') ? img : `http://localhost:5000${img}`} className="w-full h-full object-cover" alt="Property" />
+                  </div>
+                )) || (
+                    <div className="col-span-full py-10 text-center bg-slate-50 rounded-2xl text-slate-400 font-bold uppercase text-[10px] tracking-widest">No images provided</div>
+                  )}
+              </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                  <section className="space-y-6">
-                    <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] flex items-center">
-                      <MapPin className="mr-2 text-accent" size={14} /> Full Location
-                    </h4>
-                    <div className="p-6 bg-slate-50 rounded-2xl space-y-3">
-                       <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Suburb:</span> <span className="text-sm font-black">{selectedModerationProperty.location.suburb}</span></div>
-                       <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">District:</span> <span className="text-sm font-black">{selectedModerationProperty.location.district}</span></div>
-                       <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Region:</span> <span className="text-sm font-black">{selectedModerationProperty.location.region}</span></div>
-                    </div>
-                  </section>
-
-                  <section className="space-y-6">
-                    <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] flex items-center">
-                      <Maximize className="mr-2 text-accent" size={14} /> Specifications
-                    </h4>
-                    <div className="p-6 bg-slate-50 rounded-2xl space-y-3">
-                       <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Type:</span> <span className="text-sm font-black">{selectedModerationProperty.propertyInfo.propertyType}</span></div>
-                       <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Building Size:</span> <span className="text-sm font-black">{selectedModerationProperty.propertyInfo.size} sqm</span></div>
-                       <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Land Size:</span> <span className="text-sm font-black">{selectedModerationProperty.propertyInfo.landSize} sqm</span></div>
-                       <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Rooms:</span> <span className="text-sm font-black">{selectedModerationProperty.propertyInfo.rooms}</span></div>
-                    </div>
-                  </section>
-               </div>
-
-               <section className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <section className="space-y-6">
                   <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] flex items-center">
-                    <DollarSign className="mr-2 text-accent" size={14} /> Market Pricing
+                    <MapPin className="mr-2 text-accent" size={14} /> Full Location
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-8 bg-blue-50 rounded-3xl">
-                       <p className="text-[10px] font-black text-accent uppercase tracking-widest mb-1">Sale Value</p>
-                       <p className="text-3xl font-black text-primary">GHS {selectedModerationProperty.marketData.salePrice.toLocaleString()}</p>
-                    </div>
-                    <div className="p-8 bg-emerald-50 rounded-3xl">
-                       <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Rental Value (Est)</p>
-                       <p className="text-3xl font-black text-primary">GHS {selectedModerationProperty.marketData.rentalValue.toLocaleString()}</p>
-                    </div>
+                  <div className="p-6 bg-slate-50 rounded-2xl space-y-3">
+                    <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Suburb:</span> <span className="text-sm font-black">{selectedModerationProperty.location.suburb}</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">District:</span> <span className="text-sm font-black">{selectedModerationProperty.location.district}</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Region:</span> <span className="text-sm font-black">{selectedModerationProperty.location.region}</span></div>
                   </div>
-               </section>
+                </section>
 
-               <section className="p-8 bg-slate-900 rounded-3xl text-white">
-                  <div className="flex items-center space-x-3 mb-4">
-                     <User size={16} className="text-slate-400" />
-                     <p className="text-xs font-black uppercase tracking-widest text-slate-400">Submitted By</p>
+                <section className="space-y-6">
+                  <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] flex items-center">
+                    <Maximize className="mr-2 text-accent" size={14} /> Specifications
+                  </h4>
+                  <div className="p-6 bg-slate-50 rounded-2xl space-y-3">
+                    <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Type:</span> <span className="text-sm font-black">{selectedModerationProperty.propertyInfo.propertyType}</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Building Size:</span> <span className="text-sm font-black">{selectedModerationProperty.propertyInfo.size} sqm</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Land Size:</span> <span className="text-sm font-black">{selectedModerationProperty.propertyInfo.landSize} sqm</span></div>
+                    <div className="flex justify-between"><span className="text-xs font-bold text-slate-400">Rooms:</span> <span className="text-sm font-black">{selectedModerationProperty.propertyInfo.rooms}</span></div>
                   </div>
-                  <h5 className="text-xl font-black mb-1">{selectedModerationProperty.uploadedBy?.name || 'Authorized Valuer'}</h5>
-                  <p className="text-sm text-slate-400">{selectedModerationProperty.uploadedBy?.email || 'Valuer Portal'}</p>
-                  <div className="mt-6 flex items-center space-x-2">
-                     <span className="text-[10px] bg-white/10 px-3 py-1 rounded-full font-black uppercase tracking-widest opacity-60">
-                        {new Date(selectedModerationProperty.createdAt).toLocaleDateString()}
-                     </span>
-                     <span className="text-[10px] bg-white/10 px-3 py-1 rounded-full font-black uppercase tracking-widest opacity-60">
-                        Ref: {selectedModerationProperty.dataSourceReference || 'Internal'}
-                     </span>
+                </section>
+              </div>
+
+              <section className="space-y-6">
+                <h4 className="text-xs font-black text-primary uppercase tracking-[0.2em] flex items-center">
+                  <DollarSign className="mr-2 text-accent" size={14} /> Market Pricing
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="p-8 bg-blue-50 rounded-3xl">
+                    <p className="text-[10px] font-black text-accent uppercase tracking-widest mb-1">Sale Value</p>
+                    <p className="text-3xl font-black text-primary">GHS {selectedModerationProperty.marketData.salePrice.toLocaleString()}</p>
                   </div>
-               </section>
+                  <div className="p-8 bg-emerald-50 rounded-3xl">
+                    <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Rental Value (Est)</p>
+                    <p className="text-3xl font-black text-primary">GHS {selectedModerationProperty.marketData.rentalValue.toLocaleString()}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="p-8 bg-slate-900 rounded-3xl text-white">
+                <div className="flex items-center space-x-3 mb-4">
+                  <User size={16} className="text-slate-400" />
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Submitted By</p>
+                </div>
+                <h5 className="text-xl font-black mb-1">{selectedModerationProperty.uploadedBy?.name || 'Authorized Valuer'}</h5>
+                <p className="text-sm text-slate-400">{selectedModerationProperty.uploadedBy?.email || 'Valuer Portal'}</p>
+                <div className="mt-6 flex items-center space-x-2">
+                  <span className="text-[10px] bg-white/10 px-3 py-1 rounded-full font-black uppercase tracking-widest opacity-60">
+                    {new Date(selectedModerationProperty.createdAt).toLocaleDateString()}
+                  </span>
+                  <span className="text-[10px] bg-white/10 px-3 py-1 rounded-full font-black uppercase tracking-widest opacity-60">
+                    Ref: {selectedModerationProperty.dataSourceReference || 'Internal'}
+                  </span>
+                </div>
+              </section>
             </div>
 
             <footer className="p-8 border-t flex space-x-4 bg-slate-50 shrink-0">
-               <button 
-                 onClick={() => { handleModerate(selectedModerationProperty._id, 'Approved'); setSelectedModerationProperty(null); }}
-                 className="flex-1 py-4 bg-emerald-500 text-white font-black rounded-2xl shadow-xl shadow-emerald-500/10 hover:bg-emerald-600 transition"
-               >
-                 Approve & Publish
-               </button>
-               <button 
-                 onClick={() => { handleModerate(selectedModerationProperty._id, 'Rejected'); setSelectedModerationProperty(null); }}
-                 className="flex-1 py-4 bg-white border-2 border-slate-200 text-red-500 font-black rounded-2xl hover:bg-red-50 transition"
-               >
-                 Reject Submission
-               </button>
+              <button
+                onClick={() => { handleModerate(selectedModerationProperty._id, 'Approved'); setSelectedModerationProperty(null); }}
+                className="flex-1 py-4 bg-emerald-500 text-white font-black rounded-2xl shadow-xl shadow-emerald-500/10 hover:bg-emerald-600 transition"
+              >
+                Approve & Publish
+              </button>
+              <button
+                onClick={() => { handleModerate(selectedModerationProperty._id, 'Rejected'); setSelectedModerationProperty(null); }}
+                className="flex-1 py-4 bg-white border-2 border-slate-200 text-red-500 font-black rounded-2xl hover:bg-red-50 transition"
+              >
+                Reject Submission
+              </button>
             </footer>
           </div>
         </div>
@@ -1397,13 +1466,13 @@ const AdminDashboard = () => {
             </div>
 
             <footer className="p-8 border-t flex space-x-4 bg-slate-50/50">
-              <button 
+              <button
                 onClick={() => setSelectedMarketEntry(null)}
                 className="flex-1 py-4 bg-white border border-slate-200 text-slate-500 font-black rounded-2xl hover:bg-slate-50 transition"
               >
                 Discard
               </button>
-              <button 
+              <button
                 onClick={handleSaveEdit}
                 disabled={isSubmitting}
                 className="flex-1 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 hover:bg-black transition active:scale-95 disabled:opacity-50"

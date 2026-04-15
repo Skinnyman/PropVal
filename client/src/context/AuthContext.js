@@ -28,6 +28,18 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
+  // Global Session Tracking Heartbeat
+  useEffect(() => {
+    if (!user) return;
+    
+    // Ping the backend every 1 minute to increment totalSessionTime and update lastActive
+    const interval = setInterval(() => {
+      api.post('/auth/session/update', { timeSpentMinutes: 1 }).catch(() => {});
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     localStorage.setItem('token', res.data.token);

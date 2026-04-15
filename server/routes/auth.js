@@ -98,6 +98,11 @@ router.post('/login', authLimiter, async (req, res) => {
       return res.status(403).json({ msg: 'Your account registration was rejected.' });
     }
 
+    // Record login time
+    user.lastLogin = new Date();
+    user.lastActive = new Date();
+    await user.save();
+
     const payload = { user: { id: user.id, role: user.role } };
 
     jwt.sign(
@@ -159,6 +164,27 @@ router.put('/profile', auth, async (req, res) => {
       subscriptionStatus: user.subscriptionStatus,
       company: user.company
     });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   POST api/auth/session/update
+// @desc    Update user session time and activity (Heartbeat)
+router.post('/session/update', auth, async (req, res) => {
+  const { timeSpentMinutes } = req.body;
+  try {
+    let user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    user.lastActive = new Date();
+    if (timeSpentMinutes && timeSpentMinutes > 0) {
+      user.totalSessionTime = (user.totalSessionTime || 0) + timeSpentMinutes;
+    }
+    await user.save();
+    
+    res.json({ msg: 'Session recorded' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
