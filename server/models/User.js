@@ -10,6 +10,8 @@ const UserSchema = new mongoose.Schema({
   accountStatus: { type: String, enum: ['Pending', 'Approved', 'Rejected'], default: 'Approved' },
   subscriptionStatus: { type: String, enum: ['Free', 'Professional'], default: 'Free' },
   savedProperties: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
+  otp: { type: String, default: null },
+  otpExpires: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
   lastLogin: { type: Date, default: null },
   lastActive: { type: Date, default: null },

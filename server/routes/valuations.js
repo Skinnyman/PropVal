@@ -8,7 +8,7 @@ const Property = require('../models/Property');
 // @route   POST api/valuations/comparable
 // @desc    Perform Comparable Sales Valuation
 router.post('/comparable', [auth, checkSubscription('Professional')], async (req, res) => {
-  const { subjectProperty, selectedComparables, adjustments } = req.body;
+  const { subjectProperty, selectedComparables, adjustments, confidenceScore, overrides } = req.body;
 
   try {
     const properties = await Property.find({ _id: { $in: selectedComparables } });
@@ -74,6 +74,8 @@ router.post('/comparable', [auth, checkSubscription('Professional')], async (req
       comparables: selectedComparables,
       adjustments: processedAdjustments,
       finalValue: Math.round(finalValue),
+      confidenceScore,
+      overrides: overrides || [],
       valuer: req.user.id
     });
 
@@ -88,7 +90,7 @@ router.post('/comparable', [auth, checkSubscription('Professional')], async (req
 // @route   POST api/valuations/income
 // @desc    Perform Income Capitalization Valuation
 router.post('/income', [auth, checkSubscription('Professional')], async (req, res) => {
-  const { subjectProperty, incomeData } = req.body;
+  const { subjectProperty, incomeData, confidenceScore, overrides } = req.body;
 
   try {
     let finalValue = 0;
@@ -143,6 +145,8 @@ router.post('/income', [auth, checkSubscription('Professional')], async (req, re
       method: 'Income Capitalization',
       incomeData,
       finalValue: Math.round(finalValue),
+      confidenceScore,
+      overrides: overrides || [],
       valuer: req.user.id
     });
 
@@ -157,7 +161,7 @@ router.post('/income', [auth, checkSubscription('Professional')], async (req, re
 // @route   POST api/valuations/cost
 // @desc    Perform Cost Method Valuation
 router.post('/cost', [auth, checkSubscription('Professional')], async (req, res) => {
-  const { subjectProperty, costData } = req.body;
+  const { subjectProperty, costData, confidenceScore, overrides } = req.body;
   const { landValue, directCosts, indirectCosts, depreciation } = costData;
 
   try {
@@ -194,6 +198,8 @@ router.post('/cost', [auth, checkSubscription('Professional')], async (req, res)
         }
       },
       finalValue: Math.round(finalValue),
+      confidenceScore,
+      overrides: overrides || [],
       valuer: req.user.id
     });
 
@@ -208,7 +214,7 @@ router.post('/cost', [auth, checkSubscription('Professional')], async (req, res)
 // @route   POST api/valuations/residual
 // @desc    Perform Residual Method Valuation
 router.post('/residual', [auth, checkSubscription('Professional')], async (req, res) => {
-  const { subjectProperty, residualData } = req.body;
+  const { subjectProperty, residualData, confidenceScore, overrides } = req.body;
 
   try {
     const gdv = Number(residualData.gdv || 0);
@@ -251,6 +257,8 @@ router.post('/residual', [auth, checkSubscription('Professional')], async (req, 
         developerProfit
       },
       finalValue: Math.round(finalValue),
+      confidenceScore,
+      overrides: overrides || [],
       valuer: req.user.id
     });
 
@@ -265,7 +273,7 @@ router.post('/residual', [auth, checkSubscription('Professional')], async (req, 
 // @route   POST api/valuations/profit
 // @desc    Perform Profit Method Valuation
 router.post('/profit', [auth, checkSubscription('Professional')], async (req, res) => {
-  const { subjectProperty, profitData } = req.body;
+  const { subjectProperty, profitData, confidenceScore, overrides } = req.body;
 
   try {
     const revenue = Number(profitData.grossAnnualRevenue || 0);
@@ -301,6 +309,8 @@ router.post('/profit', [auth, checkSubscription('Professional')], async (req, re
         yearsPurchase
       },
       finalValue: Math.round(finalValue),
+      confidenceScore,
+      overrides: overrides || [],
       valuer: req.user.id
     });
 

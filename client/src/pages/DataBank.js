@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
@@ -21,8 +21,14 @@ import {
   ChevronDown,
   ChevronLeft,
   CheckCircle2,
-  FileText
+  FileText,
+  Link as LinkIcon,
+  FileUp,
+  Table,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -35,17 +41,115 @@ import {
   Legend,
   Filler
 } from 'chart.js';
+import { AuthContext } from '../context/AuthContext';
 
+const Papa = window.Papa;
+const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk }) => {
+  const { user } = useContext(AuthContext);
+  const isAdmin = user?.role === 'Admin';
+  const [activeTab, setActiveTab] = useState('manual'); // 'manual' | 'bulk'
+  
+  // Bulk Setup
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [bulkData, setBulkData] = useState([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkError, setBulkError] = useState('');
 
-const ContributionForm = ({ type, onBack, onSubmit }) => {
+  // Google Sheets Multi-Tab States
+  const [spreadsheetId, setSpreadsheetId] = useState('');
+  const [availableSheets, setAvailableSheets] = useState([]);
+  const [selectedSheet, setSelectedSheet] = useState('');
+  const [metadataLoading, setMetadataLoading] = useState(false);
+
   const [formData, setFormData] = useState({
-    region: '', city: '', area: '', propertyType: '',
-    landSize: '', buildingSize: '', yearBuilt: '', rent: '', rentBasis: '', occupancy: '',
-    cost: '', gfa: '', spec: '', completionDate: '',
-    materialName: '', materialPrice: '', materialUnit: '', supplier: '',
-    capRate: '', annualRent: '', propertyValue: '', leaseType: '',
-    source: '', notes: '', declared: false
+    region: editingData?.region || '', 
+    city: editingData?.city || '', 
+    area: editingData?.area || '', 
+    propertyType: editingData?.propertyType || '',
+    landSize: editingData?.landSize || '', 
+    buildingSize: editingData?.buildingSize || '', 
+    yearBuilt: editingData?.yearBuilt || '', 
+    rent: editingData?.rent || '', 
+    rentBasis: editingData?.rentBasis || '', 
+    occupancy: editingData?.occupancy || '',
+    cost: editingData?.cost || '', 
+    gfa: editingData?.gfa || '', 
+    spec: editingData?.spec || '', 
+    completionDate: editingData?.completionDate || '',
+    materialName: editingData?.materialName || '', 
+    materialPrice: editingData?.materialPrice || '', 
+    materialUnit: editingData?.materialUnit || '', 
+    supplier: editingData?.supplier || '',
+    capRate: editingData?.capRate || '', 
+    annualRent: editingData?.annualRent || '', 
+    propertyValue: editingData?.propertyValue || '', 
+    leaseType: editingData?.leaseType || '',
+    source: editingData?.source || '', 
+    notes: editingData?.notes || '', 
+    declared: false, 
+    declaredBulk: false
   });
+
+  useEffect(() => {
+    if (editingData) setActiveTab('manual');
+  }, [editingData]);
+
+  const normalizeBulkData = (data, category) => {
+    return data.map(row => {
+      // Create a lowercase, no-spaces version of the keys for matching
+      const normalizedRow = {};
+      Object.keys(row).forEach(key => {
+        const cleanKey = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+        normalizedRow[cleanKey] = row[key];
+      });
+
+      // Based on the selected category, extract the specific fields
+      // Common fields
+      const newObj = {
+        region: normalizedRow.region || '',
+        city: normalizedRow.city || normalizedRow.town || '',
+        area: normalizedRow.area || normalizedRow.suburb || '',
+        propertyType: normalizedRow.propertytype || normalizedRow.type || normalizedRow.category || '',
+        source: normalizedRow.source || normalizedRow.reference || '',
+        notes: normalizedRow.notes || normalizedRow.comments || ''
+      };
+
+      if (category === 'Sale Transactions') {
+        newObj.price = normalizedRow.price || normalizedRow.saleprice || normalizedRow.value || '';
+        newObj.saleDate = normalizedRow.saledate || normalizedRow.date || '';
+        newObj.landSize = normalizedRow.landsize || normalizedRow.plot || '';
+        newObj.buildingSize = normalizedRow.buildingsize || normalizedRow.gfa || '';
+      } else if (category === 'Land Values') {
+        newObj.price = normalizedRow.price || normalizedRow.value || '';
+        newObj.landSize = normalizedRow.landsize || normalizedRow.size || '';
+        newObj.zoning = normalizedRow.zoning || normalizedRow.landuse || '';
+        newObj.tenure = normalizedRow.tenure || normalizedRow.tenuretype || '';
+      } else if (category === 'Rental Evidence') {
+        newObj.landSize = normalizedRow.landsize || normalizedRow.plot || '';
+        newObj.buildingSize = normalizedRow.buildingsize || normalizedRow.gfa || '';
+        newObj.yearBuilt = normalizedRow.yearbuilt || normalizedRow.year || '';
+        newObj.rent = normalizedRow.rent || normalizedRow.price || '';
+        newObj.rentBasis = normalizedRow.rentbasis || normalizedRow.basis || '';
+        newObj.occupancy = normalizedRow.occupancy || normalizedRow.occupancyrate || '';
+      } else if (category === 'Construction Costs') {
+        newObj.cost = normalizedRow.cost || normalizedRow.totalcost || normalizedRow.price || '';
+        newObj.gfa = normalizedRow.gfa || normalizedRow.area || '';
+        newObj.spec = normalizedRow.spec || normalizedRow.specification || '';
+        newObj.completionDate = normalizedRow.completiondate || normalizedRow.date || '';
+      } else if (category === 'Building Materials') {
+        newObj.materialName = normalizedRow.materialname || normalizedRow.material || normalizedRow.name || '';
+        newObj.materialPrice = normalizedRow.materialprice || normalizedRow.price || '';
+        newObj.materialUnit = normalizedRow.materialunit || normalizedRow.unit || '';
+        newObj.supplier = normalizedRow.supplier || normalizedRow.source || '';
+      } else if (category === 'Cap Rates / Yields') {
+        newObj.capRate = normalizedRow.caprate || normalizedRow.yield || '';
+        newObj.annualRent = normalizedRow.annualrent || normalizedRow.rent || '';
+        newObj.propertyValue = normalizedRow.propertyvalue || normalizedRow.value || '';
+        newObj.leaseType = normalizedRow.leasetype || normalizedRow.lease || '';
+      }
+      return newObj;
+    });
+  };
 
   const getFormTitle = () => {
     switch (type) {
@@ -81,15 +185,42 @@ const ContributionForm = ({ type, onBack, onSubmit }) => {
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-500">
-      <div className="flex items-center space-x-4 mb-8">
+      <div className="flex items-center space-x-4 mb-6">
         <button onClick={onBack} className="flex items-center text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-accent transition-colors group">
           <ChevronLeft size={14} className="mr-1 group-hover:-translate-x-1 transition-transform" /> Back
         </button>
         <div className="w-px h-4 bg-slate-200"></div>
-        <h3 className="text-sm font-black text-primary uppercase tracking-widest">Step 2: Enter Data — {getFormTitle()}</h3>
+        <h3 className="text-sm font-black text-primary uppercase tracking-widest">Step 2: Submit {getFormTitle()} Evidence</h3>
       </div>
 
-      <div className="bg-white border border-slate-100 rounded-[2rem] p-8 md:p-12 shadow-sm">
+      <div className="flex space-x-2 mb-8">
+        {isAdmin ? (
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl w-max">
+            <button
+              onClick={() => setActiveTab('manual')}
+              className={`px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'manual' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Manual Entry
+            </button>
+            <button
+              onClick={() => setActiveTab('bulk')}
+              className={`px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'bulk' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Bulk Upload
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setActiveTab('manual')}
+            className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white text-primary shadow-sm"
+          >
+            {editingData ? 'Edit Resubmission' : 'Manual Entry'}
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'manual' ? (
+        <div className="bg-white border border-slate-100 rounded-[2rem] p-8 md:p-12 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10 mb-12">
           {/* Common Fields */}
           <div className="space-y-3">
@@ -433,6 +564,14 @@ const ContributionForm = ({ type, onBack, onSubmit }) => {
           </div>
         </div>
 
+        {editingData && editingData.rejectionReason && (
+          <div className="mb-8 p-6 bg-rose-50 border border-rose-100 rounded-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-rose-500"></div>
+            <p className="text-rose-600 text-[10px] font-black uppercase tracking-widest mb-2">Admin Feedback / Rejection Reason:</p>
+            <p className="text-rose-800 text-xs font-bold leading-relaxed">{editingData.rejectionReason}</p>
+          </div>
+        )}
+
         <div className="bg-slate-50/80 rounded-[1.5rem] p-6 mb-10 border border-slate-100/50 group hover:border-accent transition-colors">
           <div className="flex items-start">
             <input
@@ -454,18 +593,323 @@ const ContributionForm = ({ type, onBack, onSubmit }) => {
             onClick={() => onSubmit(formData)}
             className="bg-[#d4a017] text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center shadow-2xl shadow-yellow-800/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100"
           >
-            Submit Data Record
+            {editingData ? 'Resubmit Edits' : 'Submit Data Record'}
           </button>
           <button onClick={onBack} className="px-8 py-4 border border-slate-100 text-slate-400 font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-slate-50 transition-all">
             Cancel
           </button>
         </div>
       </div>
+      ) : (
+        <div className="bg-white border border-slate-100 rounded-[2rem] p-8 md:p-12 shadow-sm">
+          <div className="mb-10 text-center max-w-xl mx-auto">
+            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Table size={28} />
+            </div>
+            <h3 className="text-xl font-black text-primary mb-3">Bulk Import via Google Sheets</h3>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">Link a published Google Sheet or upload a CSV file to instantly import hundreds of records into the <span className="font-bold text-slate-800">{type}</span> database.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+            {/* Link Option */}
+            <div className="bg-slate-50 p-8 rounded-[1.5rem] border border-slate-100 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center space-x-3 text-slate-800 mb-4">
+                  <LinkIcon size={18} className="text-blue-500" />
+                  <h4 className="text-xs font-black uppercase tracking-widest">Paste Published URL</h4>
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium mb-6 leading-relaxed">
+                  Go to your Google Sheet <span className="font-bold text-slate-600">&gt; File &gt; Share &gt; Publish to web</span>. Select <span className="font-bold text-slate-600">CSV</span> and paste the link below.
+                </p>
+                <div className="space-y-4">
+                  <input
+                    type="url"
+                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                    className="w-full bg-white border border-slate-200 py-3.5 px-4 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-xs shadow-sm"
+                    value={sheetUrl}
+                    onChange={(e) => {
+                      setSheetUrl(e.target.value);
+                      setAvailableSheets([]);
+                      setSpreadsheetId('');
+                    }}
+                  />
+                  {availableSheets.length === 0 ? (
+                    <button
+                      onClick={async () => {
+                        if (!sheetUrl) return setBulkError('Please enter a valid URL');
+                        setMetadataLoading(true); setBulkError('');
+                        try {
+                          const res = await api.get(`/market-data/google-sheets/metadata?url=${encodeURIComponent(sheetUrl)}`);
+                          setAvailableSheets(res.data.availableSheets);
+                          setSpreadsheetId(res.data.spreadsheetId);
+                          if (res.data.availableSheets.length > 0) {
+                            setSelectedSheet(res.data.availableSheets[0].title);
+                          }
+                        } catch (err) {
+                          setBulkError(err.response?.data?.msg || 'Failed to scan spreadsheet. Check your URL and permissions.');
+                        } finally {
+                          setMetadataLoading(false);
+                        }
+                      }}
+                      disabled={metadataLoading || !sheetUrl}
+                      className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    >
+                      {metadataLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : <Search size={16} className="mr-2" />} Scan Spreadsheet
+                    </button>
+                  ) : (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Select Data Sheet / Tab</label>
+                        <select
+                          className="w-full bg-white border border-blue-200 py-3.5 px-4 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs text-blue-700 shadow-sm"
+                          value={selectedSheet}
+                          onChange={(e) => setSelectedSheet(e.target.value)}
+                        >
+                          {availableSheets.map((s, idx) => (
+                            <option key={idx} value={s.title}>{s.title}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          setBulkLoading(true); setBulkError('');
+                          try {
+                            const res = await api.post('/market-data/google-sheets/fetch', {
+                              spreadsheetId,
+                              sheetName: selectedSheet
+                            });
+                            
+                            // 4. FRONTEND IMPLEMENTATION: Parse CSV string returned from backend
+                            Papa.parse(res.data.csvData, {
+                              header: true,
+                              skipEmptyLines: true,
+                              complete: (results) => {
+                                if (!results.data || results.data.length === 0) {
+                                  setBulkError(`The sheet was fetched, but no valid data rows were found below the headers. (API returned ${res.data.rawRowsLength} total row(s))`);
+                                  setBulkLoading(false);
+                                  return;
+                                }
+                                const normalized = normalizeBulkData(results.data, type);
+                                setBulkData(normalized);
+                                setBulkLoading(false);
+                              },
+                              error: (err) => {
+                                setBulkError('Failed to parse the normalized CSV string from Google Sheets.');
+                                setBulkLoading(false);
+                              }
+                            });
+                          } catch (err) {
+                            console.error("Bulk Import Error:", err);
+                            setBulkError(err.response?.data?.msg || err.message || 'Failed to fetch data from selected sheet.');
+                            setBulkLoading(false);
+                          }
+                        }}
+                        disabled={bulkLoading}
+                        className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      >
+                        {bulkLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : <LinkIcon size={16} className="mr-2" />} Fetch Data from Sheet
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* File Option */}
+            <div className="bg-slate-50 p-8 rounded-[1.5rem] border border-slate-100 border-dashed flex flex-col justify-center items-center text-center">
+              <input
+                type="file"
+                accept=".csv"
+                id="file-upload"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  setBulkLoading(true); setBulkError('');
+                  Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: (results) => {
+                      const normalized = normalizeBulkData(results.data, type);
+                      setBulkData(normalized);
+                      setBulkLoading(false);
+                    },
+                    error: (err) => {
+                      setBulkError('Failed to parse file.');
+                      setBulkLoading(false);
+                    }
+                  });
+                }}
+              />
+              <label htmlFor="file-upload" className="cursor-pointer group flex flex-col items-center">
+                <div className="w-16 h-16 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 group-hover:text-emerald-500 group-hover:border-emerald-200 transition-all mb-4 shadow-sm group-hover:scale-105">
+                  <FileUp size={24} />
+                </div>
+                <h4 className="text-xs font-black uppercase tracking-widest text-slate-800 mb-2">Upload CSV File</h4>
+                <p className="text-[10px] text-slate-400 font-medium leading-relaxed max-w-[200px]">Instead of a live link, download your sheet as a CSV and select it here.</p>
+              </label>
+            </div>
+          </div>
+
+          {bulkError && (
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs font-bold text-center">
+              {bulkError}
+            </div>
+          )}
+
+          {bulkData.length > 0 && (
+            <div className="mb-10 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xs font-black text-primary uppercase tracking-widest">Preview: {bulkData.length} records found</h4>
+                <button onClick={() => setBulkData([])} className="text-[10px] text-slate-400 font-bold hover:text-rose-500 uppercase">Clear Data</button>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl overflow-x-auto max-h-[300px] overflow-y-auto shadow-inner">
+                <table className="w-full text-left text-xs whitespace-nowrap">
+                  <thead className="bg-slate-50 sticky top-0 border-b border-slate-200">
+                    <tr>
+                      {Object.keys(bulkData[0]).map((key, idx) => (
+                        <th key={idx} className="px-4 py-3 font-bold text-slate-500 uppercase tracking-widest text-[9px]">{key}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {bulkData.slice(0, 10).map((row, i) => (
+                      <tr key={i} className="hover:bg-slate-50/50">
+                        {Object.values(row).map((val, idx) => (
+                          <td key={idx} className="px-4 py-3 text-slate-600 font-medium text-[10px] truncate max-w-[150px]">{val}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {bulkData.length > 10 && <p className="text-center text-[10px] text-slate-400 mt-3 font-bold">Showing first 10 rows</p>}
+
+              <div className="mt-8 bg-emerald-50/50 rounded-[1.5rem] p-6 border border-emerald-100 group transition-colors">
+                <div className="flex items-start">
+                  <input
+                    type="checkbox"
+                    id="declarationBulk"
+                    className="mt-1 w-4 h-4 rounded border-slate-200 text-emerald-600 focus:ring-emerald-600 cursor-pointer"
+                    checked={formData.declaredBulk}
+                    onChange={(e) => setFormData({ ...formData, declaredBulk: e.target.checked })}
+                  />
+                  <label htmlFor="declarationBulk" className="ml-4 text-[10px] font-bold text-slate-600 leading-relaxed cursor-pointer select-none group-hover:text-primary transition-colors">
+                    <span className="text-emerald-700 uppercase tracking-widest font-black mr-2">Bulk Declaration:</span>By submitting this sheet, I confirm all {bulkData.length} records are based on verified market evidence obtained professionally.
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end">
+                <button
+                  disabled={!formData.declaredBulk}
+                  onClick={() => onSubmitBulk(bulkData, spreadsheetId, selectedSheet)}
+                  className="bg-emerald-600 text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-600/30 hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed"
+                >
+                  Import {bulkData.length} Records
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-const UploadDashboard = ({ onSelect }) => {
+const MySubmissionsList = ({ onEdit }) => {
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMine = async () => {
+      try {
+        const res = await api.get('/market-data/mine');
+        setSubmissions(res.data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMine();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  if (submissions.length === 0) {
+    return (
+      <div className="bg-white rounded-[2rem] p-12 text-center border border-slate-100 shadow-sm">
+        <p className="text-slate-400 font-bold text-sm">You haven't submitted any data yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-slate-100 rounded-[2rem] p-8 shadow-sm">
+      <h3 className="text-lg font-black text-primary mb-6">My Submissions</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs whitespace-nowrap">
+          <thead className="bg-slate-50 border-b border-slate-100">
+            <tr>
+              <th className="px-4 py-3 font-bold text-slate-400 uppercase tracking-widest text-[9px]">Category</th>
+              <th className="px-4 py-3 font-bold text-slate-400 uppercase tracking-widest text-[9px]">Details</th>
+              <th className="px-4 py-3 font-bold text-slate-400 uppercase tracking-widest text-[9px]">Status</th>
+              <th className="px-4 py-3 font-bold text-slate-400 uppercase tracking-widest text-[9px]">Submitted</th>
+              <th className="px-4 py-3 font-bold text-slate-400 uppercase tracking-widest text-[9px]">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {submissions.map(sub => (
+              <tr key={sub._id} className="hover:bg-slate-50/50">
+                <td className="px-4 py-4 text-slate-800 font-bold">{sub.category}</td>
+                <td className="px-4 py-4 text-slate-500 max-w-[200px] truncate">
+                  {sub.city} {sub.area} {sub.price ? `- ${sub.price}` : ''} {sub.cost ? `- ${sub.cost}` : ''}
+                </td>
+                <td className="px-4 py-4">
+                  <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest ${
+                    sub.status === 'approved' ? 'bg-emerald-50 text-emerald-600' :
+                    sub.status === 'rejected' ? 'bg-rose-50 text-rose-600' :
+                    'bg-amber-50 text-amber-600'
+                  }`}>
+                    {sub.status}
+                  </span>
+                  {sub.status === 'rejected' && (
+                    <div className="mt-2 text-[10px] text-rose-500 font-medium whitespace-normal leading-relaxed max-w-[250px] bg-rose-50 p-2 rounded border border-rose-100">
+                      <strong>Reason:</strong> {sub.rejectionReason}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-4 text-slate-400 font-medium">
+                  {new Date(sub.updatedAt || sub.createdAt || new Date()).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-4">
+                  {sub.status === 'rejected' && (
+                    <button
+                      onClick={() => onEdit(sub)}
+                      className="text-xs font-black text-rose-600 bg-rose-50 hover:bg-rose-100 uppercase tracking-widest px-4 py-2 rounded-lg transition-colors border border-rose-200"
+                    >
+                      Fix & Resubmit
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const UploadDashboard = ({ onSelect, onEditSubmission }) => {
+  const [activeTab, setActiveTab] = useState('new'); // 'new' | 'mine'
   const contributionCards = [
     {
       id: 'Sale Transactions',
@@ -545,8 +989,28 @@ const UploadDashboard = ({ onSelect }) => {
         </div>
       </div>
 
-      <div className="px-2">
-        <h3 className="text-sm font-black text-primary uppercase tracking-widest mb-8">Step 1: What type of data are you submitting?</h3>
+      <div className="flex space-x-2 mb-8 bg-slate-100/50 p-1.5 rounded-2xl w-fit border border-slate-100 px-2 ml-2">
+        <button
+          onClick={() => setActiveTab('new')}
+          className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'new' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+          New Submission
+        </button>
+        <button
+          onClick={() => setActiveTab('mine')}
+          className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'mine' ? 'bg-white text-primary shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+          My Submissions
+        </button>
+      </div>
+
+      {activeTab === 'mine' ? (
+        <div className="px-2">
+          <MySubmissionsList onEdit={onEditSubmission} />
+        </div>
+      ) : (
+        <div className="px-2">
+          <h3 className="text-sm font-black text-primary uppercase tracking-widest mb-8">Step 1: What type of data are you submitting?</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {contributionCards.map((card) => (
             <button
@@ -565,6 +1029,7 @@ const UploadDashboard = ({ onSelect }) => {
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 };
@@ -904,6 +1369,7 @@ const staticCategories = {
 };
 
 const DataBank = () => {
+  const { user } = useContext(AuthContext);
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get('category') || 'Market Overview';
 
@@ -929,6 +1395,8 @@ const DataBank = () => {
 
   const [uploadStep, setUploadStep] = useState(1);
   const [selectedUploadType, setSelectedUploadType] = useState(null);
+  const [editingSubmission, setEditingSubmission] = useState(null);
+  const [bulkSuccessSummary, setBulkSuccessSummary] = useState(null);
 
   const currentDate = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
 
@@ -937,23 +1405,47 @@ const DataBank = () => {
     // Reset upload step if changing category
     setUploadStep(1);
     setSelectedUploadType(null);
+    setEditingSubmission(null);
   };
 
   const handleUploadSelect = (dataId) => {
     setSelectedUploadType(dataId);
+    setEditingSubmission(null);
     setUploadStep(2);
   };
 
-  const handleUploadSubmit = async (formData) => {
+  const handleEditSubmission = (submission) => {
+    setSelectedUploadType(submission.category);
+    setEditingSubmission(submission);
+    setUploadStep(2);
+  };
+
+  const handleUploadSubmit = async (formDataOrArray, isBulk = false, sourceId = null, sourceName = null) => {
     try {
-      await api.post('/market-data', {
-        ...formData,
-        category: selectedUploadType
-      });
+      if (editingSubmission) {
+        // Resubmit flow
+        await api.put(`/market-data/${editingSubmission._id}/resubmit`, formDataOrArray);
+      } else if (isBulk) {
+        const res = await api.post('/market-data/bulk', {
+          category: selectedUploadType,
+          entries: formDataOrArray,
+          sourceSpreadsheetId: sourceId,
+          sourceSheetName: sourceName
+        });
+        setBulkSuccessSummary(res.data.msg);
+      } else {
+        await api.post('/market-data', {
+          ...formDataOrArray,
+          category: selectedUploadType
+        });
+      }
+      
       // Reset after successful upload
       setUploadStep(1);
       setSelectedUploadType(null);
-      // Maybe show success toast
+      setEditingSubmission(null);
+      // Re-fetch to show new data
+      fetchCategoryData();
     } catch (err) {
       console.error('Error submitting data:', err);
     }
@@ -1056,14 +1548,25 @@ const DataBank = () => {
             </div>
           </header>
 
+          {bulkSuccessSummary && (
+            <div className="mb-6 mx-2 p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl text-xs font-bold flex justify-between items-center animate-in fade-in slide-in-from-top-2">
+              <span>{bulkSuccessSummary}</span>
+              <button onClick={() => setBulkSuccessSummary(null)} className="p-1 hover:bg-emerald-100 rounded-full transition">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
           {activeCategory === 'Upload Data' ? (
             uploadStep === 1 ? (
-              <UploadDashboard onSelect={handleUploadSelect} />
+              <UploadDashboard onSelect={handleUploadSelect} onEditSubmission={handleEditSubmission} />
             ) : (
               <ContributionForm
                 type={selectedUploadType}
-                onBack={() => setUploadStep(1)}
-                onSubmit={handleUploadSubmit}
+                editingData={editingSubmission}
+                onBack={() => { setUploadStep(1); setEditingSubmission(null); }}
+                onSubmit={(data) => handleUploadSubmit(data, false)}
+                onSubmitBulk={(data, sid, sname) => handleUploadSubmit(data, true, sid, sname)}
               />
             )
           ) : activeCategory !== 'Market Overview' && categoryMetadata ? (
@@ -1078,7 +1581,37 @@ const DataBank = () => {
                     <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{categoryMetadata.subtitle}</p>
                   </div>
                 </div>
-                <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Updated: {currentDate}</span>
+                <div className="flex items-center space-x-4">
+                    {user?.role === 'Admin' && (
+                      <button
+                        onClick={async () => {
+                          const sourceData = marketData.find(d => d.sourceSpreadsheetId && d.sourceSheetName);
+                          if (!sourceData) {
+                            alert('No records in this view were found with a linked Google Sheet source.');
+                            return;
+                          }
+                          setLoading(true);
+                          try {
+                            const res = await api.post('/market-data/google-sheets/sync', {
+                              spreadsheetId: sourceData.sourceSpreadsheetId,
+                              sheetName: sourceData.sourceSheetName,
+                              category: activeCategory
+                            });
+                            setBulkSuccessSummary(res.data.msg);
+                            fetchCategoryData();
+                          } catch (err) {
+                            alert(err.response?.data?.msg || 'Sync failed.');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className="bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest flex items-center hover:bg-blue-100 transition-all"
+                      >
+                        <RefreshCw size={12} className="mr-2" /> Sync from Google
+                      </button>
+                    )}
+                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">Updated: {currentDate}</span>
+                  </div>
               </div>
 
               <div className="mt-8 bg-blue-50/50 border border-blue-100 p-6 rounded-[1.5rem] flex gap-4">

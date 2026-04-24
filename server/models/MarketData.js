@@ -74,6 +74,10 @@ const MarketDataSchema = new mongoose.Schema({
   icon: { type: String },
   uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   isVerified: { type: Boolean, default: false },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+  rejectionReason: { type: String },
+  sourceSpreadsheetId: { type: String },
+  sourceSheetName: { type: String },
   updatedAt: { type: Date, default: Date.now }
 });
 

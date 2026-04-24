@@ -1,23 +1,35 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ArrowLeft, ShieldCheck, Key } from 'lucide-react';
+import { Loader2, ArrowLeft, ShieldCheck, Key, KeyRound } from 'lucide-react';
 
 const AdminRegister = () => {
-  const { register } = useContext(AuthContext);
+  const { register, verifyOtp } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  const [view, setView] = useState('register'); // 'register' or 'otp'
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    adminSecret: ''
+    adminSecret: '',
+    otpCode: ''
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
 
-  const { name, email, password, confirmPassword, adminSecret } = formData;
+  useEffect(() => {
+    if (view === 'otp' && timeLeft > 0) {
+      const timerId = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timerId);
+    }
+  }, [view, timeLeft]);
+
+  const { name, email, password, confirmPassword, adminSecret, otpCode } = formData;
 
   const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -48,14 +60,32 @@ const AdminRegister = () => {
 
     try {
       const res = await register(formData);
-      if (res.user.role === 'Admin') {
-        navigate('/admin');
+      if (res.requireOtp) {
+        setSuccess('OTP sent to your email. Please verify.');
+        setView('otp');
+        setTimeLeft(120);
       } else {
-        setError('Registration failed: Invalid secret code.');
-        setLoading(false);
+        if (res.user.role === 'Admin') navigate('/admin');
+        else navigate('/dashboard');
       }
     } catch (err) {
       setError(err.response?.data?.msg || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onSubmitOtp = async e => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await verifyOtp(email, otpCode);
+      if (res.user.role === 'Admin') navigate('/admin');
+      else navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.msg || 'Invalid OTP');
+    } finally {
       setLoading(false);
     }
   };
@@ -91,8 +121,12 @@ const AdminRegister = () => {
             <div className="w-16 h-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-xl mx-auto mb-6">
               <ShieldCheck size={36} />
             </div>
-            <h2 className="text-3xl font-black text-slate-900 mb-2">Admin Signup</h2>
-            <p className="text-slate-500 font-medium">Establish administrative authority</p>
+            <h2 className="text-3xl font-black text-slate-900 mb-2">
+              {view === 'register' ? 'Admin Signup' : 'Verify Email'}
+            </h2>
+            <p className="text-slate-500 font-medium">
+              {view === 'register' ? 'Establish administrative authority' : 'Enter the code sent to your official email'}
+            </p>
           </div>
 
           {error && (
@@ -101,105 +135,132 @@ const AdminRegister = () => {
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-5">
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Legal Name</label>
-              <input
-                type="text"
-                name="name"
-                value={name}
-                onChange={onChange}
-                required
-                className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-bold"
-                placeholder="Administrator Name"
-              />
+          {success && (
+            <div className="bg-emerald-50 text-emerald-600 p-4 rounded-2xl mb-8 text-sm font-medium border border-emerald-100">
+              {success}
             </div>
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Official Email</label>
-              <input
-                type="email"
-                name="email"
-                value={email}
-                onChange={onChange}
-                required
-                className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-bold"
-                placeholder="admin@propval.gh"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Choose Password</label>
-              <input
-                type="password"
-                name="password"
-                value={password}
-                onChange={onChange}
-                required
-                className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-bold"
-                placeholder="••••••••"
-              />
+          )}
 
-              {/* Strength Meter */}
-              <div className="mt-3 px-1">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-[10px] font-black uppercase tracking-tight text-slate-400">Security Grade</span>
-                  <span className={`text-[10px] font-black uppercase ${strength.label === 'Strong' ? 'text-emerald-500' : strength.label === 'Fair' ? 'text-yellow-600' : 'text-red-500'}`}>
-                    {strength.label}
-                  </span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 ease-out ${strength.color}`}
-                    style={{ width: `${strength.score}%` }}
-                  ></div>
-                </div>
-                <p className="text-[9px] text-slate-400 mt-2 leading-relaxed">
-                  Requirement: <span className="text-slate-900 font-bold">Alphanumeric</span> (A-Z + 0-9), min 8 chars.
-                </p>
+          {view === 'register' && (
+            <form onSubmit={onSubmit} className="space-y-5">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Legal Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={name}
+                  onChange={onChange}
+                  required
+                  className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-bold"
+                  placeholder="Administrator Name"
+                />
               </div>
-            </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Official Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={email}
+                  onChange={onChange}
+                  required
+                  className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-bold"
+                  placeholder="admin@propval.gh"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Choose Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={password}
+                  onChange={onChange}
+                  required
+                  className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-bold"
+                  placeholder="••••••••"
+                />
 
-            <div>
-              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Confirm Password</label>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={confirmPassword}
-                onChange={onChange}
-                required
-                className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-bold"
-                placeholder="••••••••"
-              />
-            </div>
-            <div className="pt-4 border-t border-slate-100">
-              <label className="flex items-center text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-2 ml-1">
-                <Key size={12} className="mr-1" /> System Secret Key
-              </label>
-              <input
-                type="password"
-                name="adminSecret"
-                value={adminSecret}
-                onChange={onChange}
-                required
-                className="w-full px-6 py-4 bg-red-50/50 border-2 border-dashed border-red-100 rounded-2xl focus:ring-2 focus:ring-red-400 transition outline-none text-slate-900 font-black placeholder:text-red-200"
-                placeholder="Enter Creation Secret"
-              />
-            </div>
+                {/* Strength Meter */}
+                <div className="mt-3 px-1">
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-tight text-slate-400">Security Grade</span>
+                    <span className={`text-[10px] font-black uppercase ${strength.label === 'Strong' ? 'text-emerald-500' : strength.label === 'Fair' ? 'text-yellow-600' : 'text-red-500'}`}>
+                      {strength.label}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ease-out ${strength.color}`}
+                      style={{ width: `${strength.score}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-2 leading-relaxed">
+                    Requirement: <span className="text-slate-900 font-bold">Alphanumeric</span> (A-Z + 0-9), min 8 chars.
+                  </p>
+                </div>
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-6 py-5 bg-slate-900 text-white font-black rounded-2xl shadow-2xl shadow-slate-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-300 text-lg flex items-center justify-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin" size={24} />
-                  <span>Initializing...</span>
-                </>
-              ) : (
-                <span>Register Administrator</span>
-              )}
-            </button>
-          </form>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Confirm Password</label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={confirmPassword}
+                  onChange={onChange}
+                  required
+                  className="w-full px-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-bold"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="pt-4 border-t border-slate-100">
+                <label className="flex items-center text-[10px] font-black text-red-500 uppercase tracking-[0.2em] mb-2 ml-1">
+                  <Key size={12} className="mr-1" /> System Secret Key
+                </label>
+                <input
+                  type="password"
+                  name="adminSecret"
+                  value={adminSecret}
+                  onChange={onChange}
+                  required
+                  className="w-full px-6 py-4 bg-red-50/50 border-2 border-dashed border-red-100 rounded-2xl focus:ring-2 focus:ring-red-400 transition outline-none text-slate-900 font-black placeholder:text-red-200"
+                  placeholder="Enter Creation Secret"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-6 py-5 bg-slate-900 text-white font-black rounded-2xl shadow-2xl shadow-slate-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-300 text-lg flex items-center justify-center space-x-2"
+              >
+                {loading ? <><Loader2 className="animate-spin" size={24} /><span>Initializing...</span></> : <span>Register Administrator</span>}
+              </button>
+            </form>
+          )}
+
+          {view === 'otp' && (
+            <form onSubmit={onSubmitOtp} className="space-y-6">
+              <div className="text-center mb-4">
+                {timeLeft > 0 ? (
+                  <p className="text-sm font-bold text-slate-500">
+                    Code expires in <span className="text-red-500">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
+                  </p>
+                ) : (
+                  <p className="text-sm font-bold text-red-500">
+                    Code has expired. Please register again.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Verification Code</label>
+                <div className="relative group">
+                  <KeyRound className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition duration-200" size={20} />
+                  <input type="text" name="otpCode" value={otpCode} onChange={onChange} required className="w-full pl-14 pr-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-medium tracking-widest text-center text-lg" placeholder="123456" maxLength={6} disabled={timeLeft === 0} />
+                </div>
+              </div>
+              <button type="submit" disabled={loading || timeLeft === 0} className="w-full mt-6 py-5 bg-slate-900 text-white font-black rounded-2xl shadow-2xl shadow-slate-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-300 text-lg flex items-center justify-center space-x-2">
+                {loading ? <><Loader2 className="animate-spin" size={24} /><span>Verifying...</span></> : <span>Verify Admin Account</span>}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

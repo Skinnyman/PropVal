@@ -155,13 +155,31 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleVerifyMarketData = async (id) => {
+  const handleApproveMarketData = async (id) => {
     try {
-      await api.patch(`/admin/market-data/${id}/verify`);
-      setMarketDataList(prev => prev.map(item => item._id === id ? { ...item, isVerified: true } : item));
+      if (!window.confirm('Are you sure you want to approve this submission? It will be immediately published to all valuers.')) return;
+      await api.put(`/market-data/${id}/approve`);
+      setMarketDataList(prev => prev.map(item => item._id === id ? { ...item, isVerified: true, status: 'approved' } : item));
     } catch (err) {
       console.error(err);
       alert('Error verifying record');
+    }
+  };
+
+  const handleRejectMarketData = async (id) => {
+    const reason = window.prompt("Please provide a reason for rejecting this entry. This will be sent to the contributor:");
+    if (reason === null) return; // User cancelled
+    if (reason.trim() === '') {
+      alert("A rejection reason is required.");
+      return;
+    }
+    
+    try {
+      await api.put(`/market-data/${id}/reject`, { reason });
+      setMarketDataList(prev => prev.map(item => item._id === id ? { ...item, status: 'rejected', isVerified: false, rejectionReason: reason } : item));
+    } catch (err) {
+      console.error(err);
+      alert('Error rejecting record');
     }
   };
 
@@ -283,7 +301,7 @@ const AdminDashboard = () => {
       item.area || '',
       item.propertyType || '',
       item.price || item.rent || item.cost || item.capRate || '',
-      item.isVerified ? 'Verified' : 'Pending',
+      item.status === 'approved' ? 'Verified' : item.status === 'rejected' ? 'Rejected' : 'Pending',
       item.uploadedBy?.name || 'Valuer',
       new Date(item.updatedAt).toLocaleDateString()
     ]);
@@ -433,7 +451,7 @@ const AdminDashboard = () => {
               className={`px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm font-black transition flex items-center whitespace-nowrap ${activeTab === 'database' ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-primary'}`}
             >
               Master Database
-              {(allProperties.some(p => p.verificationStatus === 'Pending') || marketDataList.some(m => !m.isVerified)) && <span className="ml-2 w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>}
+              {(allProperties.some(p => p.verificationStatus === 'Pending') || marketDataList.some(m => m.status === 'pending')) && <span className="ml-2 w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>}
             </button>
           </div>
         </header>
@@ -1217,13 +1235,14 @@ const AdminDashboard = () => {
                       {filteredDataBank.map((item) => (
                         <div key={item._id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:shadow-md transition">
                           <div className="flex items-center space-x-4 min-w-0">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.isVerified ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'}`}>
-                              {item.isVerified ? <Check size={20} /> : <Clock size={20} />}
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${item.status === 'approved' ? 'bg-emerald-50 text-emerald-500' : item.status === 'rejected' ? 'bg-rose-50 text-rose-500' : 'bg-amber-50 text-amber-500'}`}>
+                              {item.status === 'approved' ? <Check size={20} /> : item.status === 'rejected' ? <AlertCircle size={20} /> : <Clock size={20} />}
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center space-x-2 mb-1">
                                 <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">{item.category}</span>
-                                {!item.isVerified && <span className="text-[9px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pending Approval</span>}
+                                {item.status === 'pending' && <span className="text-[9px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pending Approval</span>}
+                                {item.status === 'rejected' && <span className="text-[9px] bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Rejected</span>}
                               </div>
                               <h4 className="font-bold text-primary truncate lowercase first-letter:uppercase">
                                 {item.title || item.propertyType || item.materialName || 'Untitled Entry'}
@@ -1238,14 +1257,23 @@ const AdminDashboard = () => {
                           </div>
 
                           <div className="flex items-center space-x-2 shrink-0">
-                            {!item.isVerified && (
-                              <button
-                                onClick={() => handleVerifyMarketData(item._id)}
-                                className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition shadow-sm"
-                                title="Approve Submission"
-                              >
-                                <Check size={16} />
-                              </button>
+                            {item.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveMarketData(item._id)}
+                                  className="p-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition shadow-sm flex items-center shadow-emerald-500/20"
+                                  title="Approve Submission"
+                                >
+                                  <Check size={16} />
+                                </button>
+                                <button
+                                  onClick={() => handleRejectMarketData(item._id)}
+                                  className="p-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition shadow-sm flex items-center shadow-rose-500/20"
+                                  title="Reject Submission"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </>
                             )}
                             <button
                               onClick={() => handleEditMarketData(item)}

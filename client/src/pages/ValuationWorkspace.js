@@ -10,7 +10,9 @@ import {
   AlertCircle,
   Calculator,
   Home,
-  Loader2
+  Loader2,
+  Database,
+  ShieldAlert
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -71,6 +73,12 @@ const ValuationWorkspace = () => {
   const [compAdjustments, setCompAdjustments] = useState({});
   const [valuationResult, setValuationResult] = useState(null);
 
+  // Intelligent Engine States
+  const [recommendations, setRecommendations] = useState(null);
+  const [originalRecommendations, setOriginalRecommendations] = useState(null);
+  const [overrides, setOverrides] = useState([]);
+  const [confidenceScore, setConfidenceScore] = useState('N/A');
+
   const [subject, setSubject] = useState({
     region: 'Greater Accra',
     district: '',
@@ -125,11 +133,76 @@ const ValuationWorkspace = () => {
     setSubject({ ...subject, [e.target.name]: e.target.value });
   };
 
-  const onIncomeChange = (e) => setIncomeData({ ...incomeData, [e.target.name]: e.target.value });
-  const onCostChange = (e) => setCostData({ ...costData, [e.target.name]: e.target.value });
+  // Override Tracking Logic
+  const handleOverride = (field, originalValue, newValue) => {
+    if (originalValue && String(originalValue) !== String(newValue)) {
+      if (!overrides.find(o => o.field === field)) {
+        setOverrides(prev => [...prev, { field, originalValue: String(originalValue), newValue: String(newValue), reason: '' }]);
+      } else {
+        setOverrides(prev => prev.map(o => o.field === field ? { ...o, newValue: String(newValue) } : o));
+      }
+    } else {
+      setOverrides(prev => prev.filter(o => o.field !== field)); // remove if they changed it back
+    }
+  };
+
+  const updateOverrideReason = (field, reason) => {
+    setOverrides(prev => prev.map(o => o.field === field ? { ...o, reason } : o));
+  };
+
+  const onIncomeChange = (e) => {
+    setIncomeData({ ...incomeData, [e.target.name]: e.target.value });
+    if (e.target.name === 'annualRentalIncome') handleOverride('Annual Rent', originalRecommendations?.avgRent, e.target.value);
+    if (e.target.name === 'capRate') handleOverride('Cap Rate', originalRecommendations?.avgCapRate, e.target.value);
+  };
+  const onCostChange = (e) => {
+    setCostData({ ...costData, [e.target.name]: e.target.value });
+    if (e.target.name === 'landValue') handleOverride('Land Value', originalRecommendations?.avgLandValue, e.target.value);
+    if (e.target.name === 'directCosts') handleOverride('Construction Cost', originalRecommendations?.avgCostPerSqm * Number(subject.size || 1), e.target.value);
+  };
   const onCostDepreciationChange = (e) => setCostData({ ...costData, depreciation: { ...costData.depreciation, [e.target.name]: e.target.value } });
   const onResidualChange = (e) => setResidualData({ ...residualData, [e.target.name]: e.target.value });
   const onProfitChange = (e) => setProfitData({ ...profitData, [e.target.name]: e.target.value });
+
+  // Intelligent Auto-Fetch Effect
+  useEffect(() => {
+    const fetchRecs = async () => {
+      if (subject.region && subject.suburb && subject.propertyType && method !== 'Comparable Sales') {
+        try {
+          const res = await api.get(`/market-data/recommendations?region=${subject.region}&suburb=${subject.suburb}&propertyType=${subject.propertyType}`);
+          const data = res.data;
+          setRecommendations(data);
+          setOriginalRecommendations(data);
+          setConfidenceScore(data.confidenceScore);
+
+          // Auto Pre-fill based on method
+          if (method === 'Income Capitalization') {
+            setIncomeData(prev => ({
+              ...prev,
+              annualRentalIncome: prev.annualRentalIncome || data.avgRent || '',
+              capRate: prev.capRate || data.avgCapRate || ''
+            }));
+          } else if (method === 'Cost Method') {
+            const calculatedCost = data.avgCostPerSqm ? (data.avgCostPerSqm * Number(subject.size || 1)) : '';
+            setCostData(prev => ({
+              ...prev,
+              landValue: prev.landValue || data.avgLandValue || '',
+              directCosts: prev.directCosts || calculatedCost
+            }));
+          }
+        } catch (err) {
+          console.error("Error fetching market recommendations", err);
+        }
+      }
+    };
+    
+    // Debounce to prevent rapid calls while typing suburb
+    const delayDebounceFn = setTimeout(() => {
+      fetchRecs();
+    }, 1000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [subject.region, subject.suburb, subject.propertyType, method, subject.size]);
 
   const addDcfYear = () => {
     setIncomeData({
@@ -193,7 +266,7 @@ const ValuationWorkspace = () => {
     setLoading(true);
     try {
       let endpoint = '/valuations/comparable';
-      let payload = { subjectProperty: subject };
+      let payload = { subjectProperty: subject, confidenceScore, overrides };
 
       if (method === 'Income Capitalization') {
         endpoint = '/valuations/income';
@@ -480,6 +553,26 @@ const ValuationWorkspace = () => {
                   </div>
                 </div>
 
+                {recommendations && method !== 'Comparable Sales' && (
+                  <div className="mb-10 bg-blue-50/50 border border-blue-100 rounded-3xl p-6 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-accent text-white text-[10px] font-black uppercase px-4 py-1 rounded-bl-xl tracking-widest flex items-center shadow-sm">
+                      <Database size={12} className="mr-1" /> Data Bank Live Sync
+                    </div>
+                    <div className="flex items-center mb-4 mt-2">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mr-4 ${confidenceScore === 'High' ? 'bg-emerald-100 text-emerald-600' : confidenceScore === 'Moderate' ? 'bg-amber-100 text-amber-600' : 'bg-slate-200 text-slate-500'}`}>
+                        <ShieldAlert size={20} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-primary text-sm">Market Intelligence Engine</h4>
+                        <p className="text-[10px] text-slate-500 font-medium">Found {recommendations.dataPointsCount} verified records. Confidence Level: <span className="font-black text-accent">{confidenceScore}</span></p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed font-medium max-w-2xl">
+                      We have automatically pre-filled the valuation inputs below based on real-time market averages for <b>{subject.propertyType}</b> properties in <b>{subject.suburb || subject.region}</b>. You may override these values, but doing so will require a professional justification to maintain defensibility.
+                    </p>
+                  </div>
+                )}
+
                 {method === 'Income Capitalization' && (
                   <div className="mt-10 pt-10 border-t border-slate-100">
                     <div className="flex justify-between items-center mb-6">
@@ -496,8 +589,16 @@ const ValuationWorkspace = () => {
                     {incomeData.methodology === 'Direct Capitalization' ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="space-y-3">
-                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Annual Rent (GHS)</label>
+                          <div className="flex justify-between items-center">
+                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Annual Rent (GHS)</label>
+                            {originalRecommendations?.avgRent && <span className="text-[8px] bg-accent/10 text-accent font-black uppercase px-2 py-0.5 rounded-md">Data Bank</span>}
+                          </div>
                           <input type="number" name="annualRentalIncome" value={incomeData.annualRentalIncome} onChange={onIncomeChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                          {overrides.find(o => o.field === 'Annual Rent') && (
+                            <div className="mt-2 animate-fadeIn">
+                              <input type="text" placeholder="Reason for override..." value={overrides.find(o => o.field === 'Annual Rent').reason} onChange={e => updateOverrideReason('Annual Rent', e.target.value)} className="w-full text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-xl p-2 outline-none" />
+                            </div>
+                          )}
                         </div>
                         <div className="space-y-3">
                           <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Vacancy Rate (%)</label>
@@ -508,8 +609,16 @@ const ValuationWorkspace = () => {
                           <input type="number" name="operatingExpenses" value={incomeData.operatingExpenses} onChange={onIncomeChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
                         </div>
                         <div className="space-y-3">
-                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cap Rate (%)</label>
+                          <div className="flex justify-between items-center">
+                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Cap Rate (%)</label>
+                            {originalRecommendations?.avgCapRate && <span className="text-[8px] bg-accent/10 text-accent font-black uppercase px-2 py-0.5 rounded-md">Data Bank</span>}
+                          </div>
                           <input type="number" name="capRate" value={incomeData.capRate} onChange={onIncomeChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold" />
+                          {overrides.find(o => o.field === 'Cap Rate') && (
+                            <div className="mt-2 animate-fadeIn">
+                              <input type="text" placeholder="Reason for override..." value={overrides.find(o => o.field === 'Cap Rate').reason} onChange={e => updateOverrideReason('Cap Rate', e.target.value)} className="w-full text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-xl p-2 outline-none" />
+                            </div>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -560,12 +669,28 @@ const ValuationWorkspace = () => {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Land Value (GHS)</label>
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Land Value (GHS)</label>
+                          {originalRecommendations?.avgLandValue && <span className="text-[8px] bg-amber-100 text-amber-600 font-black uppercase px-2 py-0.5 rounded-md">Data Bank</span>}
+                        </div>
                         <input type="number" name="landValue" value={costData.landValue} onChange={onCostChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-amber-500 transition font-bold" />
+                        {overrides.find(o => o.field === 'Land Value') && (
+                            <div className="mt-2 animate-fadeIn">
+                              <input type="text" placeholder="Reason for override..." value={overrides.find(o => o.field === 'Land Value').reason} onChange={e => updateOverrideReason('Land Value', e.target.value)} className="w-full text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-xl p-2 outline-none" />
+                            </div>
+                        )}
                       </div>
                       <div className="space-y-3">
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Direct Costs (Const)</label>
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Direct Costs (Const)</label>
+                          {originalRecommendations?.avgCostPerSqm && <span className="text-[8px] bg-amber-100 text-amber-600 font-black uppercase px-2 py-0.5 rounded-md">Data Bank</span>}
+                        </div>
                         <input type="number" name="directCosts" value={costData.directCosts} onChange={onCostChange} className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-amber-500 transition font-bold" />
+                        {overrides.find(o => o.field === 'Construction Cost') && (
+                            <div className="mt-2 animate-fadeIn">
+                              <input type="text" placeholder="Reason for override..." value={overrides.find(o => o.field === 'Construction Cost').reason} onChange={e => updateOverrideReason('Construction Cost', e.target.value)} className="w-full text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-xl p-2 outline-none" />
+                            </div>
+                        )}
                       </div>
                       <div className="space-y-3">
                         <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Indirect Costs</label>

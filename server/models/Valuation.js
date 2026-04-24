@@ -70,6 +70,14 @@ const ValuationSchema = new mongoose.Schema({
     yearsPurchase: { type: Number }
   },
   finalValue: { type: Number, required: true },
+  confidenceScore: { type: String, enum: ['High', 'Moderate', 'Low', 'N/A'], default: 'N/A' },
+  overrides: [{
+    field: String,
+    originalValue: String,
+    newValue: String,
+    reason: String,
+    timestamp: { type: Date, default: Date.now }
+  }],
   valuer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   reportUrl: { type: String },
   createdAt: { type: Date, default: Date.now }
