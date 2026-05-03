@@ -15,6 +15,7 @@ const Login = () => {
     newPassword: ''
   });
   const [error, setError] = useState('');
+
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -167,7 +168,7 @@ const Login = () => {
 
           {view === 'otp' && (
             <form onSubmit={onSubmitOtp} className="space-y-6">
-              
+
               <div className="text-center mb-4">
                 {timeLeft > 0 ? (
                   <p className="text-sm font-bold text-slate-500">
