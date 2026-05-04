@@ -19,7 +19,9 @@ const sendEmail = async (options) => {
       tls: {
         rejectUnauthorized: false
       },
-      connectionTimeout: 10000 // 10 seconds timeout
+      connectionTimeout: 10000, // 10 seconds timeout
+      // Force IPv4. Render/Google frequently timeout or block IPv6 SMTP connections.
+      family: 4
     });
 
     // Define the email options
