@@ -11,6 +11,9 @@ dotenv.config();
 
 const app = express();
 
+// Required for Render and other reverse proxies to fix rate limit X-Forwarded-For errors
+app.set('trust proxy', 1);
+
 // Security Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
