@@ -1,5 +1,7 @@
 const nodemailer = require('nodemailer');
 
+require('dotenv').config();
+
 const sendEmail = async (options) => {
   try {
     // IMPORTANT: SMTP config usually comes from .env variables.
@@ -9,8 +11,8 @@ const sendEmail = async (options) => {
     // We create a reusable transporter object using the explicit SMTP transport
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // Use SSL for port 465
+      port: 587,
+      secure: false, // Use SSL for port 465
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -19,7 +21,7 @@ const sendEmail = async (options) => {
       tls: {
         rejectUnauthorized: false
       },
-      connectionTimeout: 10000, // 10 seconds timeout
+      connectionTimeout: 20000, // 20 seconds timeout
       // Force IPv4. Render/Google frequently timeout or block IPv6 SMTP connections.
       family: 4
     });
