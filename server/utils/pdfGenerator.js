@@ -102,7 +102,7 @@ const generateValuationReport = async (valuationData) => {
                   <div class="data-row"><span class="label">Operating Expenses</span><span class="value">GHS ${valuationData.incomeData.operatingExpenses?.toLocaleString()}</span></div>
                 </div>
                 <div>
-                  <div class="data-row"><span class="label">Net Operating Income</span><span class="value" style="color: #059669;">GHS ${(valuationData.incomeData.annualRentalIncome * (1 - valuationData.incomeData.vacancyRate/100) - valuationData.incomeData.operatingExpenses).toLocaleString()}</span></div>
+                  <div class="data-row"><span class="label">Net Operating Income</span><span class="value" style="color: #059669;">GHS ${(valuationData.incomeData.annualRentalIncome * (1 - valuationData.incomeData.vacancyRate / 100) - valuationData.incomeData.operatingExpenses).toLocaleString()}</span></div>
                   <div class="data-row"><span class="label">Capitalization Rate</span><span class="value">${valuationData.incomeData.capRate}%</span></div>
                 </div>
               </div>

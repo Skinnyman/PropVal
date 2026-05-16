@@ -143,6 +143,7 @@ const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk, s
     leaseType: editingData?.leaseType || '',
     source: editingData?.source || '', 
     notes: editingData?.notes || '', 
+    subCategory: editingData?.subCategory || '',
     declared: false, 
     declaredBulk: false
   });
@@ -194,6 +195,7 @@ const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk, s
         newObj.spec = normalizedRow.spec || normalizedRow.specification || '';
         newObj.completionDate = normalizedRow.completiondate || normalizedRow.date || '';
       } else if (category === 'Building Materials') {
+        newObj.subCategory = normalizedRow.category || normalizedRow.subcategory || '';
         newObj.materialName = normalizedRow.materialname || normalizedRow.material || normalizedRow.name || '';
         newObj.materialPrice = normalizedRow.materialprice || normalizedRow.price || '';
         newObj.materialUnit = normalizedRow.materialunit || normalizedRow.unit || '';
@@ -520,6 +522,15 @@ const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk, s
           {type === 'Building Materials' && (
             <>
               <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Material Category</label>
+                <input
+                  className="w-full bg-slate-50/50 border border-slate-100 py-3.5 px-4 rounded-xl outline-none focus:ring-1 focus:ring-accent font-medium text-xs shadow-sm"
+                  placeholder="e.g. Finishing, Plumbing"
+                  value={formData.subCategory}
+                  onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+                />
+              </div>
+              <div className="space-y-3">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Material Name</label>
                 <input
                   className="w-full bg-slate-50/50 border border-slate-100 py-3.5 px-4 rounded-xl outline-none focus:ring-1 focus:ring-accent font-medium text-xs shadow-sm"
@@ -529,7 +540,7 @@ const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk, s
                 />
               </div>
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Price (GHS)</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">materialPrice (GHS)</label>
                 <input
                   className="w-full bg-slate-50/50 border border-slate-100 py-3.5 px-4 rounded-xl outline-none focus:ring-1 focus:ring-accent font-medium text-xs shadow-sm"
                   placeholder="e.g. 115"
@@ -1253,7 +1264,8 @@ const UnifiedDataTable = ({ category, data, loading }) => {
         return (
           <>
             <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Material Name</th>
-            <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Price (GHS)</th>
+            <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Category</th>
+            <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Material Price (GHS)</th>
             <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Unit</th>
             <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Supplier</th>
             <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Region</th>
@@ -1340,8 +1352,9 @@ const UnifiedDataTable = ({ category, data, loading }) => {
       case 'Building Materials':
         return (
           <>
-            <td className="px-6 py-5 font-bold text-primary text-xs">{item.materialName || item.title || '-'} <span className="block text-[9px] font-medium text-slate-400 uppercase mt-1">{item.subCategory || ''}</span></td>
-            <td className="px-6 py-5 font-black text-[#d4a017] text-xs">GHS {item.materialPrice ? Number(item.materialPrice).toLocaleString() : (item.minPrice ? `${item.minPrice.toLocaleString()} - ${item.maxPrice.toLocaleString()}` : '-')}</td>
+            <td className="px-6 py-5 font-bold text-primary text-xs">{item.materialName || item.title || '-'}</td>
+            <td className="px-6 py-5 text-slate-500 text-[10px] font-bold uppercase tracking-widest">{item.subCategory || item.propertyType || '-'}</td>
+            <td className="px-6 py-5 font-black text-[#d4a017] text-xs">GHS {item.materialPrice ? Number(String(item.materialPrice).replace(/[^\d.-]/g, '')).toLocaleString() : (item.minPrice ? `${item.minPrice.toLocaleString()} - ${item.maxPrice.toLocaleString()}` : '-')}</td>
             <td className="px-6 py-5 text-center text-slate-500 text-xs font-bold">{item.materialUnit || item.unit || '-'}</td>
             <td className="px-6 py-5 text-slate-600 text-[10px] font-bold uppercase tracking-widest">{item.supplier || item.spec || '-'}</td>
             <td className="px-6 py-5 text-center text-slate-500 text-[10px]">{item.region || item.city || '-'}</td>
