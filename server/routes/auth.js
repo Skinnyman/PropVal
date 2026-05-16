@@ -43,42 +43,28 @@ router.post('/register', authLimiter, async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.otp = otp;
-    user.otpExpires = Date.now() + 2 * 60 * 1000; // 2 minutes
+    // Immediately generate JWT instead of OTP
+    const payload = { user: { id: user.id, role: user.role } };
 
-    await user.save();
-
-    const sendEmail = require('../utils/sendEmail');
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: 'Welcome! Verify Your Email',
-        message: `Hello ${user.name},\n\nYour verification code is ${otp}. It will expire in 2 minutes.\n\nThank you!`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #f8fafc;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h2 style="color: #0f172a; margin: 0;">PropVal GH</h2>
-            </div>
-            <div style="background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-              <h3 style="color: #334155; margin-top: 0;">Verify Your Account</h3>
-              <p style="color: #475569; font-size: 16px;">Hello ${user.name},</p>
-              <p style="color: #475569; font-size: 16px;">Thanks for registering! Your secure verification code is:</p>
-              <div style="background-color: #f1f5f9; padding: 15px; border-radius: 6px; text-align: center; margin: 25px 0;">
-                <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2563eb;">${otp}</span>
-              </div>
-              <p style="color: #ef4444; font-size: 14px; font-weight: bold; text-align: center;">This code will expire in exactly 2 minutes.</p>
-              <p style="color: #475569; font-size: 14px; margin-top: 30px;">If you did not request this code, please ignore this email.</p>
-            </div>
-          </div>
-        `
-      });
-    } catch (err) {
-      console.log('Email failed to send. For dev: OTP is ', otp);
-    }
-
-    res.json({ requireOtp: true, email: user.email, msg: 'OTP sent to email.' });
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: 360000 },
+      (err, token) => {
+        if (err) throw err;
+        res.json({
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            accountStatus: user.accountStatus,
+            subscriptionStatus: user.subscriptionStatus
+          }
+        });
+      }
+    );
 
   } catch (err) {
     console.error(err.message);
@@ -112,40 +98,32 @@ router.post('/login', authLimiter, async (req, res) => {
       return res.status(403).json({ msg: 'Your account registration was rejected.' });
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.otp = otp;
-    user.otpExpires = Date.now() + 2 * 60 * 1000; // 2 minutes
+    // Immediately generate JWT instead of OTP
+    user.lastLogin = new Date();
+    user.lastActive = new Date();
     await user.save();
 
-    const sendEmail = require('../utils/sendEmail');
-    try {
-      await sendEmail({
-        email: user.email,
-        subject: 'PropVal Security Code',
-        message: `Hello ${user.name},\n\nYour login verification code is ${otp}. It will expire in 2 minutes.`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #f8fafc;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h2 style="color: #0f172a; margin: 0;">PropVal GH</h2>
-            </div>
-            <div style="background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-              <h3 style="color: #334155; margin-top: 0;">Login Verification</h3>
-              <p style="color: #475569; font-size: 16px;">Hello ${user.name},</p>
-              <p style="color: #475569; font-size: 16px;">To complete your login securely, please use the following code:</p>
-              <div style="background-color: #f1f5f9; padding: 15px; border-radius: 6px; text-align: center; margin: 25px 0;">
-                <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #10b981;">${otp}</span>
-              </div>
-              <p style="color: #ef4444; font-size: 14px; font-weight: bold; text-align: center;">This code will expire in exactly 2 minutes.</p>
-              <p style="color: #475569; font-size: 14px; margin-top: 30px;">If you did not attempt to log in, please secure your account immediately.</p>
-            </div>
-          </div>
-        `
-      });
-    } catch (err) {
-      console.log('Email failed to send. For dev: OTP is ', otp);
-    }
+    const payload = { user: { id: user.id, role: user.role } };
 
-    res.json({ requireOtp: true, email: user.email, msg: 'OTP sent to email.' });
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: 360000 },
+      (err, token) => {
+        if (err) throw err;
+        res.json({
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            accountStatus: user.accountStatus,
+            subscriptionStatus: user.subscriptionStatus
+          }
+        });
+      }
+    );
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

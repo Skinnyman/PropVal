@@ -26,7 +26,8 @@ import {
   FileUp,
   Table,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  ShieldCheck
 } from 'lucide-react';
 
 import {
@@ -44,7 +45,7 @@ import {
 import { AuthContext } from '../context/AuthContext';
 
 const Papa = window.Papa;
-const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk }) => {
+const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk, setBulkSuccessSummary }) => {
   const { user } = useContext(AuthContext);
   const isAdmin = user?.role === 'Admin';
   const [activeTab, setActiveTab] = useState('manual'); // 'manual' | 'bulk'
@@ -60,6 +61,62 @@ const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk })
   const [availableSheets, setAvailableSheets] = useState([]);
   const [selectedSheet, setSelectedSheet] = useState('');
   const [metadataLoading, setMetadataLoading] = useState(false);
+  const [globalConfig, setGlobalConfig] = useState(null);
+  const [syncingGlobally, setSyncingGlobally] = useState(false);
+  const [globalSyncMsg, setGlobalSyncMsg] = useState('');
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'bulk') {
+      api.get('/market-data/google-sheets/config')
+        .then(res => {
+          if (res.data) setGlobalConfig(res.data);
+        })
+        .catch(err => console.error(err));
+    }
+  }, [isAdmin, activeTab]);
+
+  const saveGlobalConfig = async (url) => {
+    try {
+      setMetadataLoading(true);
+      const res = await api.post('/market-data/google-sheets/config', { url });
+      setGlobalConfig(res.data.value);
+      setBulkSuccessSummary('Global Google Sheets URL saved successfully. Auto-sync is now active.');
+      setSheetUrl('');
+    } catch (err) {
+      setBulkError(err.response?.data?.msg || 'Failed to save global configuration.');
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
+
+  const triggerGlobalSync = async () => {
+    try {
+      setSyncingGlobally(true);
+      setGlobalSyncMsg('');
+      const res = await api.post('/market-data/google-sheets/auto-sync');
+      setGlobalSyncMsg(res.data.msg);
+    } catch (err) {
+      setBulkError(err.response?.data?.msg || 'Failed to trigger global auto-sync.');
+    } finally {
+      setSyncingGlobally(false);
+    }
+  };
+
+  const saveTabMapping = async () => {
+    try {
+      setMetadataLoading(true);
+      const res = await api.post('/market-data/google-sheets/config/mapping', {
+        category: type,
+        sheetName: selectedSheet
+      });
+      setGlobalConfig(res.data.value);
+      setBulkSuccessSummary(`Tab '${selectedSheet}' is now auto-synced for ${type}.`);
+    } catch (err) {
+      setBulkError(err.response?.data?.msg || 'Failed to save tab mapping.');
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     region: editingData?.region || '', 
@@ -622,42 +679,76 @@ const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk })
                   Go to your Google Sheet <span className="font-bold text-slate-600">&gt; File &gt; Share &gt; Publish to web</span>. Select <span className="font-bold text-slate-600">CSV</span> and paste the link below.
                 </p>
                 <div className="space-y-4">
-                  <input
-                    type="url"
-                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                    className="w-full bg-white border border-slate-200 py-3.5 px-4 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-xs shadow-sm"
-                    value={sheetUrl}
-                    onChange={(e) => {
-                      setSheetUrl(e.target.value);
-                      setAvailableSheets([]);
-                      setSpreadsheetId('');
-                    }}
-                  />
-                  {availableSheets.length === 0 ? (
-                    <button
-                      onClick={async () => {
-                        if (!sheetUrl) return setBulkError('Please enter a valid URL');
-                        setMetadataLoading(true); setBulkError('');
-                        try {
-                          const res = await api.get(`/market-data/google-sheets/metadata?url=${encodeURIComponent(sheetUrl)}`);
-                          setAvailableSheets(res.data.availableSheets);
-                          setSpreadsheetId(res.data.spreadsheetId);
-                          if (res.data.availableSheets.length > 0) {
-                            setSelectedSheet(res.data.availableSheets[0].title);
-                          }
-                        } catch (err) {
-                          setBulkError(err.response?.data?.msg || 'Failed to scan spreadsheet. Check your URL and permissions.');
-                        } finally {
-                          setMetadataLoading(false);
-                        }
-                      }}
-                      disabled={metadataLoading || !sheetUrl}
-                      className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50"
-                    >
-                      {metadataLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : <Search size={16} className="mr-2" />} Scan Spreadsheet
-                    </button>
+                  {globalConfig ? (
+                    <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm animate-in fade-in">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-1 rounded">Active Source</span>
+                        <button onClick={() => setGlobalConfig(null)} className="text-[10px] text-red-500 font-bold hover:underline">Replace URL</button>
+                      </div>
+                      <p className="text-xs text-slate-700 font-medium truncate mb-2" title={globalConfig.url}>{globalConfig.url}</p>
+                      {globalConfig.mappings && globalConfig.mappings[type] && (
+                        <div className="mb-4 bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-100 flex items-center">
+                          <CheckCircle2 size={12} className="mr-2" /> Mapped Tab: {globalConfig.mappings[type]}
+                        </div>
+                      )}
+                      <button
+                        onClick={triggerGlobalSync}
+                        disabled={syncingGlobally}
+                        className="w-full bg-[#10b981] text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-emerald-600 transition-colors disabled:opacity-50"
+                      >
+                        {syncingGlobally ? <Loader2 size={16} className="animate-spin mr-2" /> : <RefreshCw size={16} className="mr-2" />} Sync All Tabs Now
+                      </button>
+                      {globalSyncMsg && <p className="text-[10px] text-emerald-600 font-bold mt-3 text-center">{globalSyncMsg}</p>}
+                    </div>
                   ) : (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                    <>
+                      <input
+                        type="url"
+                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                        className="w-full bg-white border border-slate-200 py-3.5 px-4 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium text-xs shadow-sm"
+                        value={sheetUrl}
+                        onChange={(e) => {
+                          setSheetUrl(e.target.value);
+                          setAvailableSheets([]);
+                          setSpreadsheetId('');
+                        }}
+                      />
+                      {availableSheets.length === 0 ? (
+                        <div className="space-y-2">
+                          <button
+                            onClick={async () => {
+                              if (!sheetUrl) return setBulkError('Please enter a valid URL');
+                              setMetadataLoading(true); setBulkError('');
+                              try {
+                                const res = await api.get(`/market-data/google-sheets/metadata?url=${encodeURIComponent(sheetUrl)}`);
+                                setAvailableSheets(res.data.availableSheets);
+                                setSpreadsheetId(res.data.spreadsheetId);
+                                if (res.data.availableSheets.length > 0) {
+                                  setSelectedSheet(res.data.availableSheets[0].title);
+                                }
+                              } catch (err) {
+                                setBulkError(err.response?.data?.msg || 'Failed to scan spreadsheet. Check your URL and permissions.');
+                              } finally {
+                                setMetadataLoading(false);
+                              }
+                            }}
+                            disabled={metadataLoading || !sheetUrl}
+                            className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50"
+                          >
+                            {metadataLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : <Search size={16} className="mr-2" />} Scan Spreadsheet
+                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => saveGlobalConfig(sheetUrl)}
+                              disabled={metadataLoading || !sheetUrl}
+                              className="w-full bg-slate-900 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-slate-800 transition-colors disabled:opacity-50"
+                            >
+                              {metadataLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : <ShieldCheck size={16} className="mr-2" />} Save as Global Auto-Sync URL
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                       <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Select Data Sheet / Tab</label>
                         <select
@@ -670,46 +761,60 @@ const ContributionForm = ({ type, editingData, onBack, onSubmit, onSubmitBulk })
                           ))}
                         </select>
                       </div>
-                      <button
-                        onClick={async () => {
-                          setBulkLoading(true); setBulkError('');
-                          try {
-                            const res = await api.post('/market-data/google-sheets/fetch', {
-                              spreadsheetId,
-                              sheetName: selectedSheet
-                            });
-                            
-                            // 4. FRONTEND IMPLEMENTATION: Parse CSV string returned from backend
-                            Papa.parse(res.data.csvData, {
-                              header: true,
-                              skipEmptyLines: true,
-                              complete: (results) => {
-                                if (!results.data || results.data.length === 0) {
-                                  setBulkError(`The sheet was fetched, but no valid data rows were found below the headers. (API returned ${res.data.rawRowsLength} total row(s))`);
+                      <div className="flex flex-col space-y-3">
+                        <button
+                          onClick={async () => {
+                            setBulkLoading(true); setBulkError('');
+                            try {
+                              const res = await api.post('/market-data/google-sheets/fetch', {
+                                spreadsheetId,
+                                sheetName: selectedSheet
+                              });
+                              
+                              // 4. FRONTEND IMPLEMENTATION: Parse CSV string returned from backend
+                              Papa.parse(res.data.csvData, {
+                                header: true,
+                                skipEmptyLines: true,
+                                complete: (results) => {
+                                  if (!results.data || results.data.length === 0) {
+                                    setBulkError(`The sheet was fetched, but no valid data rows were found below the headers. (API returned ${res.data.rawRowsLength} total row(s))`);
+                                    setBulkLoading(false);
+                                    return;
+                                  }
+                                  const normalized = normalizeBulkData(results.data, type);
+                                  setBulkData(normalized);
                                   setBulkLoading(false);
-                                  return;
+                                },
+                                error: (err) => {
+                                  setBulkError('Failed to parse the normalized CSV string from Google Sheets.');
+                                  setBulkLoading(false);
                                 }
-                                const normalized = normalizeBulkData(results.data, type);
-                                setBulkData(normalized);
-                                setBulkLoading(false);
-                              },
-                              error: (err) => {
-                                setBulkError('Failed to parse the normalized CSV string from Google Sheets.');
-                                setBulkLoading(false);
-                              }
-                            });
-                          } catch (err) {
-                            console.error("Bulk Import Error:", err);
-                            setBulkError(err.response?.data?.msg || err.message || 'Failed to fetch data from selected sheet.');
-                            setBulkLoading(false);
-                          }
-                        }}
-                        disabled={bulkLoading}
-                        className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50"
-                      >
-                        {bulkLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : <LinkIcon size={16} className="mr-2" />} Fetch Data from Sheet
-                      </button>
+                              });
+                            } catch (err) {
+                              console.error("Bulk Import Error:", err);
+                              setBulkError(err.response?.data?.msg || err.message || 'Failed to fetch data from selected sheet.');
+                              setBulkLoading(false);
+                            }
+                          }}
+                          disabled={bulkLoading}
+                          className="w-full bg-blue-600 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          {bulkLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : <LinkIcon size={16} className="mr-2" />} Fetch Data from Sheet
+                        </button>
+
+                        {isAdmin && (
+                          <button
+                            onClick={saveTabMapping}
+                            disabled={metadataLoading || !selectedSheet}
+                            className="w-full bg-slate-900 text-white px-6 py-3.5 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center hover:bg-slate-800 transition-colors disabled:opacity-50"
+                          >
+                            {metadataLoading ? <Loader2 size={16} className="animate-spin mr-2" /> : <ShieldCheck size={16} className="mr-2" />} Save as Auto-Sync Tab for {type}
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  )}
+                  </>
                   )}
                 </div>
               </div>
@@ -1408,6 +1513,16 @@ const DataBank = () => {
     setEditingSubmission(null);
   };
 
+  // Auto-Sync globally on mount for Admins
+  useEffect(() => {
+    if (user?.role === 'Admin') {
+      api.post('/market-data/google-sheets/auto-sync')
+        .then(() => fetchCategoryData()) // Re-fetch immediately after background sync
+        .catch(() => {}); // Silent fail on auto-sync
+    }
+    // eslint-disable-next-line
+  }, [user]);
+
   const handleUploadSelect = (dataId) => {
     setSelectedUploadType(dataId);
     setEditingSubmission(null);
@@ -1567,6 +1682,7 @@ const DataBank = () => {
                 onBack={() => { setUploadStep(1); setEditingSubmission(null); }}
                 onSubmit={(data) => handleUploadSubmit(data, false)}
                 onSubmitBulk={(data, sid, sname) => handleUploadSubmit(data, true, sid, sname)}
+                setBulkSuccessSummary={setBulkSuccessSummary}
               />
             )
           ) : activeCategory !== 'Market Overview' && categoryMetadata ? (

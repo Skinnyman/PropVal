@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const MarketData = require('../models/MarketData');
+const Settings = require('../models/Settings');
 const auth = require('../middleware/auth');
 const googleSheetsService = require('../utils/googleSheetsService');
 const dataNormalizer = require('../utils/dataNormalizer');
@@ -679,6 +680,202 @@ router.post('/google-sheets/sync', auth, async (req, res) => {
   } catch (err) {
     console.error('Sync Error:', err.message);
     res.status(500).json({ msg: 'Failed to sync data. Check Service Account permissions.' });
+  }
+});
+
+// @route   GET api/market-data/google-sheets/config
+// @desc    Get the globally saved Google Sheets URL
+// @access  Private (Admin)
+router.get('/google-sheets/config', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') return res.status(401).json({ msg: 'Not authorized' });
+
+    const settings = await Settings.findOne({ key: 'google_sheets_url' });
+    if (!settings) return res.json(null);
+
+    res.json(settings.value);
+  } catch (err) {
+    console.error('Settings Error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST api/market-data/google-sheets/config
+// @desc    Save or update the global Google Sheets URL
+// @access  Private (Admin)
+router.post('/google-sheets/config', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') return res.status(401).json({ msg: 'Not authorized' });
+
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ msg: 'Spreadsheet URL is required' });
+
+    const spreadsheetId = googleSheetsService.extractSpreadsheetId(url);
+    if (!spreadsheetId) {
+      return res.status(400).json({ msg: 'Invalid Google Sheets URL format.' });
+    }
+
+    const availableSheets = await googleSheetsService.getSpreadsheetMetadata(spreadsheetId);
+
+    const value = { url, spreadsheetId, availableSheets };
+    
+    // Preserve existing mappings if updating URL
+    const existingSettings = await Settings.findOne({ key: 'google_sheets_url' });
+    if (existingSettings && existingSettings.value && existingSettings.value.mappings) {
+      value.mappings = existingSettings.value.mappings;
+    }
+
+    await Settings.findOneAndUpdate(
+      { key: 'google_sheets_url' },
+      { value, lastUpdatedBy: req.user.id },
+      { upsert: true, new: true }
+    );
+
+    res.json({ msg: 'Google Sheets Source updated globally.', value });
+  } catch (err) {
+    console.error('Settings Error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST api/market-data/google-sheets/config/mapping
+// @desc    Map a category to a specific sheet/tab name
+// @access  Private (Admin)
+router.post('/google-sheets/config/mapping', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') return res.status(401).json({ msg: 'Not authorized' });
+
+    const { category, sheetName } = req.body;
+    if (!category || !sheetName) return res.status(400).json({ msg: 'Category and sheet name are required' });
+
+    const settings = await Settings.findOne({ key: 'google_sheets_url' });
+    if (!settings || !settings.value) return res.status(400).json({ msg: 'Global Google Sheets URL must be configured first' });
+
+    const value = { ...settings.value };
+    if (!value.mappings) value.mappings = {};
+    value.mappings[category] = sheetName;
+
+    await Settings.findOneAndUpdate(
+      { key: 'google_sheets_url' },
+      { value, lastUpdatedBy: req.user.id },
+      { new: true }
+    );
+
+    res.json({ msg: `Tab '${sheetName}' successfully mapped to category '${category}'`, value });
+  } catch (err) {
+    console.error('Mapping Error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// @desc    Auto-sync all tabs that match category names from the global Google Sheet
+// @access  Private (Admin)
+router.post('/google-sheets/auto-sync', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') return res.status(401).json({ msg: 'Not authorized' });
+
+    const settings = await Settings.findOne({ key: 'google_sheets_url' });
+    if (!settings || !settings.value || !settings.value.spreadsheetId) {
+      return res.status(400).json({ msg: 'No global Google Sheets URL configured.' });
+    }
+
+    const { spreadsheetId } = settings.value;
+    const availableSheets = await googleSheetsService.getSpreadsheetMetadata(spreadsheetId);
+    
+    // Known categories that we can sync
+    const knownCategories = [
+      'Sale Transactions', 'Rental Evidence', 'Construction Costs', 
+      'Building Materials', 'Fittings & Fixtures', 'Cap Rates / Yields', 'Market Overview'
+    ];
+
+    let totalUpserted = 0;
+    let totalModified = 0;
+    let syncedCategories = [];
+
+    const mappings = settings.value.mappings || {};
+
+    // Loop through known categories and check if they have a mapped sheet
+    for (const category of knownCategories) {
+      const sheetName = mappings[category]; // The Google Sheet tab name mapped to this category
+      
+      if (sheetName && availableSheets.includes(sheetName)) {
+        try {
+          const rows = await googleSheetsService.getSheetValues(spreadsheetId, sheetName);
+          if (!rows || rows.length < 2) continue;
+
+          const headers = rows[0].map(h => h.toLowerCase().trim());
+          const dataObjects = rows.slice(1).map(row => {
+            const obj = {};
+            headers.forEach((header, index) => { obj[header] = row[index] || ''; });
+            return obj;
+          });
+
+          // Normalize data specifically for this category
+          const normalizedEntries = dataNormalizer.normalizeMarketData(dataObjects, category);
+          const operations = normalizedEntries.map(entry => {
+            const filter = {
+              category: category,
+              region: entry.region || '',
+              city: entry.city || '',
+              area: entry.area || '',
+              propertyType: entry.propertyType || ''
+            };
+
+            if (category === 'Sale Transactions' || category === 'Land Values') {
+              filter.price = entry.price || '';
+              if (entry.saleDate) filter.saleDate = entry.saleDate;
+            } else if (category === 'Rental Evidence') {
+              filter.rent = entry.rent || '';
+              filter.buildingSize = entry.buildingSize || '';
+            } else if (category === 'Construction Costs') {
+              filter.cost = entry.cost || '';
+              filter.gfa = entry.gfa || '';
+            } else if (category === 'Building Materials' || category === 'Fittings & Fixtures') {
+              filter.materialName = entry.materialName || '';
+              filter.supplier = entry.supplier || '';
+            } else if (category === 'Cap Rates / Yields') {
+              filter.capRate = entry.capRate || '';
+              filter.propertyValue = entry.propertyValue || '';
+            }
+
+            return {
+              updateOne: {
+                filter,
+                update: {
+                  $set: {
+                    ...entry,
+                    category: category,
+                    isVerified: true,
+                    status: 'approved',
+                    source: 'Global Google Sheets Sync',
+                    sourceSpreadsheetId: spreadsheetId,
+                    sourceSheetName: sheetName,
+                    updatedAt: Date.now()
+                  }
+                },
+                upsert: true
+              }
+            };
+          });
+
+          const result = await MarketData.bulkWrite(operations);
+          totalUpserted += result.upsertedCount;
+          totalModified += result.modifiedCount;
+          syncedCategories.push(`${category} (from tab: ${sheetName})`);
+        } catch (err) {
+          console.error(`Auto-Sync Error for category ${category} with tab ${sheetName}:`, err.message);
+        }
+      }
+    }
+
+    res.json({
+      msg: `Global Sync complete. ${totalUpserted} new records, ${totalModified} updated.`,
+      syncedCategories
+    });
+  } catch (err) {
+    console.error('Auto-Sync Error:', err.message);
+    res.status(500).json({ msg: 'Failed to auto-sync. Check Service Account permissions.' });
   }
 });
 

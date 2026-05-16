@@ -9,7 +9,7 @@ const fs = require('fs');
 // Load the Service Account key
 const KEY_FILE_PATH = path.join(__dirname, '..', 'service-account.json');
 
-// Helper to check if key file exists
+// Helper to check if key file exists 
 const isKeyFileAvailable = () => {
   return fs.existsSync(KEY_FILE_PATH);
 };
@@ -59,7 +59,7 @@ const getSpreadsheetMetadata = async (spreadsheetId) => {
   try {
     const auth = getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
-    
+
     const response = await sheets.spreadsheets.get({
       spreadsheetId,
     });
@@ -84,16 +84,16 @@ const getSheetValues = async (spreadsheetId, sheetName) => {
 
     // Use a full range to get all data
     const range = `${sheetName}!A:Z`;
-    
+
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range,
     });
 
     const rows = response.data.values;
-    
+
     console.log(`[Google Sheets API] Successfully fetched ${rows ? rows.length : 0} rows from tab: ${sheetName}`);
-    
+
     return rows || [];
   } catch (err) {
     console.error(`[Google Sheets Service Error] Tab: ${sheetName}:`, err.message);

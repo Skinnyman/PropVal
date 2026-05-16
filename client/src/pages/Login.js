@@ -4,7 +4,7 @@ import { Lock, Mail, ShieldCheck, Loader2, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
-  const { login, verifyOtp, forgotPassword, resetPassword, clearUser } = useContext(AuthContext);
+  const { login, forgotPassword, resetPassword } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [view, setView] = useState('login'); // 'login', 'otp', 'forgot', 'reset'
@@ -38,38 +38,10 @@ const Login = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await login(email, password);
-      // Wait, if an admin login happens on the public portal, maybe we clear it... 
-      // Actually let's assume they continue with OTP
-      if (res.requireOtp) {
-        setSuccess(res.msg || 'OTP sent to your email.');
-        setView('otp');
-        setTimeLeft(120);
-      } else {
-        navigate('/dashboard');
-      }
+      await login(email, password);
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.msg || 'Invalid credentials');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSubmitOtp = async e => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await verifyOtp(email, otpCode);
-      if (res.user.role === 'Admin') {
-        clearUser();
-        setError('Administrators must use the admin portal.');
-        setView('login');
-      } else {
-        navigate('/dashboard');
-      }
-    } catch (err) {
-      setError(err.response?.data?.msg || 'Invalid OTP');
     } finally {
       setLoading(false);
     }
@@ -120,13 +92,11 @@ const Login = () => {
           <div className="text-center mb-10">
             <h2 className="text-3xl font-black text-slate-900 mb-2">
               {view === 'login' && 'Secure Login'}
-              {view === 'otp' && 'Verify Identity'}
               {view === 'forgot' && 'Forgot Password'}
               {view === 'reset' && 'Reset Password'}
             </h2>
             <p className="text-slate-500 font-medium">
               {view === 'login' && 'Access your valuation intelligence'}
-              {view === 'otp' && 'Please enter the code sent to your email'}
               {view === 'forgot' && 'Enter your email to receive a reset code'}
               {view === 'reset' && 'Enter your reset code and new password'}
             </p>
@@ -166,32 +136,6 @@ const Login = () => {
             </form>
           )}
 
-          {view === 'otp' && (
-            <form onSubmit={onSubmitOtp} className="space-y-6">
-
-              <div className="text-center mb-4">
-                {timeLeft > 0 ? (
-                  <p className="text-sm font-bold text-slate-500">
-                    Code expires in <span className="text-red-500">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
-                  </p>
-                ) : (
-                  <p className="text-sm font-bold text-red-500">
-                    Code has expired. Please request a new one.
-                  </p>
-                )}
-              </div>
-
-              <div className="relative group">
-                <KeyRound className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-accent transition duration-200" size={20} />
-                <input type="text" name="otpCode" value={otpCode} onChange={onChange} required className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-accent/20 focus:ring-4 focus:ring-accent/5 transition-all outline-none text-slate-900 font-medium tracking-widest text-center text-lg" placeholder="123456" maxLength={6} disabled={timeLeft === 0} />
-              </div>
-
-              <button type="submit" disabled={loading || timeLeft === 0} className="w-full py-5 bg-emerald-600 text-white font-black rounded-2xl shadow-2xl shadow-emerald-500/40 hover:scale-[1.02] active:scale-95 transition-all duration-300 text-lg flex items-center justify-center space-x-2 disabled:opacity-75 disabled:cursor-not-allowed">
-                {loading ? <><Loader2 className="animate-spin" size={24} /><span>Verifying...</span></> : <span>Verify Code</span>}
-              </button>
-              <button type="button" onClick={() => setView('login')} className="w-full py-3 text-slate-500 font-bold outline-none hover:underline">Cancel</button>
-            </form>
-          )}
 
           {view === 'forgot' && (
             <form onSubmit={onSubmitForgot} className="space-y-6">

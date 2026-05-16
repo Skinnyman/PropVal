@@ -1,35 +1,23 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ArrowLeft, ShieldCheck, Key, KeyRound } from 'lucide-react';
+import { Loader2, ArrowLeft, ShieldCheck, Key } from 'lucide-react';
 
 const AdminRegister = () => {
-  const { register, verifyOtp } = useContext(AuthContext);
+  const { register } = useContext(AuthContext);
   const navigate = useNavigate();
-
-  const [view, setView] = useState('register'); // 'register' or 'otp'
 
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    adminSecret: '',
-    otpCode: ''
+    adminSecret: ''
   });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
 
-  useEffect(() => {
-    if (view === 'otp' && timeLeft > 0) {
-      const timerId = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timerId);
-    }
-  }, [view, timeLeft]);
-
-  const { name, email, password, confirmPassword, adminSecret, otpCode } = formData;
+  const { name, email, password, confirmPassword, adminSecret } = formData;
 
   const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -60,31 +48,10 @@ const AdminRegister = () => {
 
     try {
       const res = await register(formData);
-      if (res.requireOtp) {
-        setSuccess('OTP sent to your email. Please verify.');
-        setView('otp');
-        setTimeLeft(120);
-      } else {
-        if (res.user.role === 'Admin') navigate('/admin');
-        else navigate('/dashboard');
-      }
-    } catch (err) {
-      setError(err.response?.data?.msg || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSubmitOtp = async e => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const res = await verifyOtp(email, otpCode);
       if (res.user.role === 'Admin') navigate('/admin');
       else navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.msg || 'Invalid OTP');
+      setError(err.response?.data?.msg || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -122,10 +89,10 @@ const AdminRegister = () => {
               <ShieldCheck size={36} />
             </div>
             <h2 className="text-3xl font-black text-slate-900 mb-2">
-              {view === 'register' ? 'Admin Signup' : 'Verify Email'}
+              Admin Signup
             </h2>
             <p className="text-slate-500 font-medium">
-              {view === 'register' ? 'Establish administrative authority' : 'Enter the code sent to your official email'}
+              Establish administrative authority
             </p>
           </div>
 
@@ -135,14 +102,7 @@ const AdminRegister = () => {
             </div>
           )}
 
-          {success && (
-            <div className="bg-emerald-50 text-emerald-600 p-4 rounded-2xl mb-8 text-sm font-medium border border-emerald-100">
-              {success}
-            </div>
-          )}
-
-          {view === 'register' && (
-            <form onSubmit={onSubmit} className="space-y-5">
+          <form onSubmit={onSubmit} className="space-y-5">
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Legal Name</label>
                 <input
@@ -234,33 +194,6 @@ const AdminRegister = () => {
                 {loading ? <><Loader2 className="animate-spin" size={24} /><span>Initializing...</span></> : <span>Register Administrator</span>}
               </button>
             </form>
-          )}
-
-          {view === 'otp' && (
-            <form onSubmit={onSubmitOtp} className="space-y-6">
-              <div className="text-center mb-4">
-                {timeLeft > 0 ? (
-                  <p className="text-sm font-bold text-slate-500">
-                    Code expires in <span className="text-red-500">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
-                  </p>
-                ) : (
-                  <p className="text-sm font-bold text-red-500">
-                    Code has expired. Please register again.
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Verification Code</label>
-                <div className="relative group">
-                  <KeyRound className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-slate-900 transition duration-200" size={20} />
-                  <input type="text" name="otpCode" value={otpCode} onChange={onChange} required className="w-full pl-14 pr-6 py-4 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-slate-900 transition outline-none text-slate-900 font-medium tracking-widest text-center text-lg" placeholder="123456" maxLength={6} disabled={timeLeft === 0} />
-                </div>
-              </div>
-              <button type="submit" disabled={loading || timeLeft === 0} className="w-full mt-6 py-5 bg-slate-900 text-white font-black rounded-2xl shadow-2xl shadow-slate-900/40 hover:scale-[1.02] active:scale-95 transition-all duration-300 text-lg flex items-center justify-center space-x-2">
-                {loading ? <><Loader2 className="animate-spin" size={24} /><span>Verifying...</span></> : <span>Verify Admin Account</span>}
-              </button>
-            </form>
-          )}
         </div>
       </div>
     </div>
