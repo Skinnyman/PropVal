@@ -162,11 +162,17 @@ router.post('/income', [auth, checkSubscription('Professional')], async (req, re
 // @desc    Perform Cost Method Valuation
 router.post('/cost', [auth, checkSubscription('Professional')], async (req, res) => {
   const { subjectProperty, costData, confidenceScore, overrides } = req.body;
-  const { landValue, directCosts, indirectCosts, depreciation } = costData;
+  const { landSize, landSizeUnit, landValue, directCosts, indirectCosts, depreciation } = costData;
 
   try {
     const defaultDepreciation = { physical: 0, functional: 0, external: 0, effectiveAge: 0, economicLife: 50 };
     const dep = Object.assign(defaultDepreciation, depreciation || {});
+
+    // Internally compute landSizeSqm for calculations
+    let computedLandSizeSqm = Number(landSize || 0);
+    if (landSizeUnit === 'Acres') {
+      computedLandSizeSqm = computedLandSizeSqm * 4046.86;
+    }
 
     // Sum costs
     const totalConstruction = Number(directCosts || 0) + Number(indirectCosts || 0);
@@ -186,6 +192,9 @@ router.post('/cost', [auth, checkSubscription('Professional')], async (req, res)
       subjectProperty,
       method: 'Cost Method',
       costData: {
+        landSize: Number(landSize || 0),
+        landSizeUnit: landSizeUnit || 'SQM',
+        landSizeSqm: computedLandSizeSqm,
         landValue: Number(landValue || 0),
         directCosts: Number(directCosts || 0),
         indirectCosts: Number(indirectCosts || 0),

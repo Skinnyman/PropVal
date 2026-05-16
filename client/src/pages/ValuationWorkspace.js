@@ -86,6 +86,7 @@ const ValuationWorkspace = () => {
     propertyType: 'Residential',
     size: '',
     landSize: '',
+    landSizeUnit: 'SQM',
     rooms: '',
     yearBuilt: new Date().getFullYear(),
     condition: 'Good',
@@ -282,6 +283,8 @@ const ValuationWorkspace = () => {
       } else if (method === 'Cost Method') {
         endpoint = '/valuations/cost';
         payload.costData = {
+          landSize: Number(subject.landSize) || 0,
+          landSizeUnit: subject.landSizeUnit,
           landValue: Number(costData.landValue),
           directCosts: Number(costData.directCosts),
           indirectCosts: Number(costData.indirectCosts),
@@ -514,13 +517,19 @@ const ValuationWorkspace = () => {
                       placeholder="350"
                     />
                   </div>
-                  <div className="space-y-4">
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Land Size (sqm/acres)</label>
-                    <input
-                      name="landSize" value={subject.landSize} onChange={onSubjectChange}
-                      className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition"
-                      placeholder="0.5"
-                    />
+                  <div className="space-y-4 col-span-1">
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Land Size</label>
+                    <div className="flex space-x-2">
+                      <input
+                        name="landSize" type="number" min="0" value={subject.landSize} onChange={onSubjectChange}
+                        className="w-full bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold"
+                        placeholder="e.g. 0.5"
+                      />
+                      <select name="landSizeUnit" value={subject.landSizeUnit} onChange={onSubjectChange} className="w-1/3 bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 focus:ring-accent transition font-bold">
+                        <option value="SQM">SQM</option>
+                        <option value="Acres">Acres</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Rooms/Units</label>
@@ -972,6 +981,10 @@ const ValuationWorkspace = () => {
 
                     {valuationResult.method === 'Cost Method' && (
                       <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Land Size</span>
+                          <span className="font-bold">{valuationResult.costData?.landSize} {valuationResult.costData?.landSizeUnit} {valuationResult.costData?.landSizeUnit === 'Acres' ? `(${valuationResult.costData?.landSizeSqm?.toLocaleString()} SQM)` : ''}</span>
+                        </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-500">Land Market Value</span>
                           <span className="font-bold">GHS {valuationResult.costData?.landValue?.toLocaleString()}</span>

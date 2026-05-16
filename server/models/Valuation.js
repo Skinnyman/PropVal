@@ -38,6 +38,9 @@ const ValuationSchema = new mongoose.Schema({
     terminalValue: { type: Number }
   },
   costData: {
+    landSize: { type: Number },
+    landSizeUnit: { type: String, enum: ['SQM', 'Acres'], default: 'SQM' },
+    landSizeSqm: { type: Number },
     landValue: { type: Number },
     directCosts: { type: Number },
     indirectCosts: { type: Number },

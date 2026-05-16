@@ -113,9 +113,10 @@ const generateValuationReport = async (valuationData) => {
             <div class="section">
               <h2>Replacement Cost Analysis</h2>
               <div style="background: #f8fafc; padding: 25px; border-radius: 16px;">
+                ${valuationData.costData.landSize ? `<div class="data-row"><span class="label">Land Size</span><span class="value">${valuationData.costData.landSize} ${valuationData.costData.landSizeUnit} ${valuationData.costData.landSizeUnit === 'Acres' ? `(${valuationData.costData.landSizeSqm?.toLocaleString()} SQM)` : ''}</span></div>` : ''}
                 <div class="data-row"><span class="label">Land Market Value</span><span class="value">GHS ${valuationData.costData.landValue?.toLocaleString()}</span></div>
-                <div class="data-row"><span class="label">Replacement Cost (GFA: ${valuationData.subjectProperty.size} sqm @ GHS ${valuationData.costData.constructionCostPerSqm}/sqm)</span><span class="value">GHS ${(valuationData.costData.constructionCostPerSqm * valuationData.subjectProperty.size).toLocaleString()}</span></div>
-                <div class="data-row"><span class="label">Accrued Depreciation</span><span class="value" style="color: #dc2626;">- GHS ${valuationData.costData.depreciation?.toLocaleString()}</span></div>
+                <div class="data-row"><span class="label">Total Construction Costs</span><span class="value">GHS ${(Number(valuationData.costData.directCosts) + Number(valuationData.costData.indirectCosts) || 0).toLocaleString()}</span></div>
+                <div class="data-row"><span class="label">Accrued Depreciation</span><span class="value" style="color: #dc2626;">- GHS ${(Number(valuationData.costData.depreciation?.physical || 0) + Number(valuationData.costData.depreciation?.functional || 0) + Number(valuationData.costData.depreciation?.external || 0)).toLocaleString()}</span></div>
               </div>
             </div>
           ` : ''}
